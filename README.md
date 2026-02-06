@@ -1,2 +1,3 @@
-# cricket-tournament-player-auction-site-with-4-team-logins-admin-player-list-rost
-Exported from Caffeine project: Cricket tournament player auction site with 4 team logins + admin, player list, rosters, and purse tracking
+## 
+
+To run app build and run docker image: `docker build -t app . docker run -it --network host app`

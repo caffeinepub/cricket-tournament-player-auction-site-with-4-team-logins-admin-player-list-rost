@@ -1,0 +1,16 @@
+{
+  "frontend/src/App.tsx": "Main application component with TanStack Router setup, root layout with profile setup modal, route definitions for login/team/admin dashboards, and correct Outlet import from @tanstack/react-router.",
+  "frontend/src/pages/LoginPage.tsx": "Login page with Internet Identity authentication, automatic redirection based on user role (team vs admin), and cricket-themed design with emerald and gold accents.",
+  "frontend/src/pages/TeamDashboardPage.tsx": "Team dashboard displaying stats cards (total purse, remaining purse, squad size) with currency in crore (₹ Cr), tabbed interface for viewing all players and team squad.",
+  "frontend/src/pages/AdminDashboardPage.tsx": "Admin dashboard with tabbed interface for player management and team management, including role-based access control and redirection logic.",
+  "frontend/src/components/TeamHeader.tsx": "Header component for team pages displaying team name, remaining purse in crore (₹ Cr), and logout button with emerald gradient styling.",
+  "frontend/src/components/AdminHeader.tsx": "Header component for admin pages displaying admin panel title, admin name, and logout button with amber gradient styling.",
+  "frontend/src/components/ProfileSetupModal.tsx": "Modal dialog for first-time user profile setup, prompting users to enter their name after Internet Identity authentication.",
+  "frontend/src/components/PlayerManagement.tsx": "Admin component for creating, editing, and deleting players with dialogs for CRUD operations, displaying player names and base prices in crore (₹ Cr) instead of dollars.",
+  "frontend/src/components/TeamManagement.tsx": "Admin component for managing teams with purse amounts in crore, creating teams, updating team purses, and assigning/removing players to/from teams with currency displayed as ₹ Cr.",
+  "frontend/src/hooks/useQueries.ts": "React Query hooks for all backend operations including user profiles, players, teams, budgets, and player assignments with proper cache invalidation.",
+  "frontend/index.css": "Global styles with OKLCH color system featuring cricket-themed palette with emerald greens (primary), amber/gold accents, and warm neutrals for both light and dark modes.",
+  "frontend/tailwind.config.js": "Tailwind configuration extending the theme with cricket-auction color tokens and maintaining the existing utility setup.",
+  "frontend/src/main.tsx": "Application entry point that sets up React Query and Internet Identity providers, with CSS import from ./index.css in the src directory.",
+  "frontend/src/index.css": "Global styles with OKLCH color system featuring cricket-themed palette with emerald greens (primary), amber/gold accents, and warm neutrals for both light and dark modes."
+}

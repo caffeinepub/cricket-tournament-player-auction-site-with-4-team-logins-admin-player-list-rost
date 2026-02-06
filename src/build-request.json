@@ -1,0 +1,12 @@
+{
+  "kind": "build_request",
+  "title": "Untitled request",
+  "priority": "normal",
+  "requirements": [],
+  "constraints": [],
+  "nonGoals": [],
+  "imageRequirements": {
+    "required": [],
+    "edits": []
+  }
+}
