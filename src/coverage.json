@@ -1,35 +1,57 @@
 {
   "kind": "coverage_report",
   "version": "1.0",
-  "generatedAt": "2026-02-07T09:01:19.035Z",
+  "generatedAt": "2026-02-07T10:06:06.377Z",
   "sources": {
     "buildRequest": true,
     "implementationPlan": true
   },
   "requirements": {
-    "total": 1,
+    "total": 3,
     "implemented": 1,
     "items": [
       {
         "id": "REQ-1",
-        "summary": "Publish the current Draft Version 15 build as the live/production deployment without introducing any additional feature changes beyond what is already in Draft Version 15.",
+        "summary": "Persist each assigned player’s final sold amount (auction winning bid) in the backend, and compute each team’s remaining purse by subtracting the sum of sold amounts for players assigned to that team (not the player base price). Ensure this sold amount is recorded when a player is assigned after an auction, and also when a player is manually assigned to a team (use the player’s base price as the sold amount for manual assignments unless an explicit sold amount is already recorded).",
+        "status": "unknown",
+        "plannedFiles": [],
+        "matchedFiles": []
+      },
+      {
+        "id": "REQ-2",
+        "summary": "Expose the sold amount data to the frontend for the player assignment view. Update or add a backend query that returns, for each player assignment, both the assigned team id and the sold amount for that player so the UI can render it without additional client-side inference.",
+        "status": "unknown",
+        "plannedFiles": [],
+        "matchedFiles": []
+      },
+      {
+        "id": "REQ-3",
+        "summary": "In the Admin → Player Management assigned players table (the \"assign player list\"), add a new column labeled \"Sold For\" that displays the player’s sold amount (e.g., \"₹ 3.20 Cr\") for each assigned player. Ensure the displayed team purse/remaining purse across the app reflects the updated backend calculation based on sold amounts spent.",
         "status": "implemented",
         "plannedFiles": [
-          "frontend/DEPLOYMENT.md"
+          "frontend/src/hooks/useQueries.ts",
+          "frontend/src/components/PlayerManagement.tsx"
         ],
         "matchedFiles": [
-          "frontend/DEPLOYMENT.md"
+          "frontend/src/hooks/useQueries.ts",
+          "frontend/src/components/PlayerManagement.tsx"
         ]
       }
     ]
   },
   "changedFiles": [
     "backend/main.mo",
+    "backend/migration.mo",
     "build-request.json",
     "feature_evidence.json",
     "frontend-file-summaries.txt",
     "frontend-implementation-plan.json",
-    "frontend/DEPLOYMENT.md",
+    "frontend/src/backend.d.ts",
+    "frontend/src/backend.ts",
+    "frontend/src/components/PlayerManagement.tsx",
+    "frontend/src/declarations/backend.did.d.ts",
+    "frontend/src/declarations/backend.did.js",
+    "frontend/src/hooks/useQueries.ts",
     "project_state.json",
     "scratch/component-selection.json",
     "spec.md",

@@ -20,6 +20,12 @@ export interface BowlerPerformance {
     ballsBowled: bigint;
     runsConceded: bigint;
 }
+export interface TeamExtended {
+    id: bigint;
+    ownerPrincipals: Array<Principal>;
+    name: string;
+    totalPurse: number;
+}
 export interface BatsmanPerformance {
     fours: bigint;
     playerId: bigint;
@@ -27,6 +33,11 @@ export interface BatsmanPerformance {
     sixes: bigint;
     innings: bigint;
     ballsFaced: bigint;
+}
+export interface TeamSummary {
+    team: TeamExtended;
+    remainingPurse: number;
+    roster: Array<[Player, number]>;
 }
 export interface FielderPerformance {
     stumpings: bigint;
@@ -87,27 +98,33 @@ export interface backendInterface {
     assignPlayerAfterAuction(playerId: bigint): Promise<void>;
     createMatch(homeTeamId: bigint, awayTeamId: bigint, homeTeamName: string, awayTeamName: string, date: string, location: string): Promise<bigint>;
     createPlayer(name: string, basePrice: number): Promise<void>;
-    createTeam(name: string, totalPurse: number): Promise<void>;
+    createTeam(name: string, totalPurse: number, ownerPrincipals: Array<Principal>): Promise<void>;
     deletePlayer(playerId: bigint): Promise<void>;
+    generateFixtures(tournamentName: string, startDate: string): Promise<void>;
     getAllMatches(): Promise<Array<Match>>;
     getAllPlayers(): Promise<Array<Player>>;
     getAllTeamBudgets(): Promise<Array<TeamBudget>>;
-    getAllTeams(): Promise<Array<Team>>;
+    getAllTeamSummaries(): Promise<Array<TeamSummary>>;
+    getAllTeams(): Promise<Array<TeamExtended>>;
     getAuctionState(playerId: bigint): Promise<AuctionState | null>;
     getCallerUserProfile(): Promise<UserProfile | null>;
     getCallerUserRole(): Promise<UserRole>;
+    getExportData(): Promise<[Array<TeamSummary>, Array<TeamExtended>, Array<Player>]>;
     getMatchById(matchId: bigint): Promise<Match | null>;
-    getPlayerTeamAssignments(): Promise<Array<[bigint, bigint | null]>>;
+    getPlayerTeamAssignmentsWithSoldAmount(): Promise<Array<[bigint, bigint | null, number]>>;
     getPlayersForTeam(teamId: bigint): Promise<Array<Player>>;
     getRemainingTeamPurse(teamId: bigint): Promise<number>;
+    getTeamSummary(teamId: bigint): Promise<TeamSummary | null>;
     getUserProfile(user: Principal): Promise<UserProfile | null>;
     isCallerAdmin(): Promise<boolean>;
     placeBid(playerId: bigint, teamId: bigint, bidAmount: number): Promise<void>;
+    registerAsUser(): Promise<void>;
     removePlayerFromTeam(playerId: bigint, teamId: bigint): Promise<void>;
     saveCallerUserProfile(profile: UserProfile): Promise<void>;
     startAuction(playerId: bigint, startingBid: number, fixedIncrement: boolean): Promise<void>;
     stopAuction(playerId: bigint): Promise<void>;
     updateMatchResults(matchId: bigint, homeTeamRuns: bigint, homeTeamWickets: bigint, awayTeamRuns: bigint, awayTeamWickets: bigint, matchWinner: string): Promise<void>;
     updatePlayer(playerId: bigint, name: string, basePrice: number): Promise<void>;
+    updateTeamOwners(teamId: bigint, newOwnerPrincipals: Array<Principal>): Promise<void>;
     updateTeamPurse(teamId: bigint, newPurse: number): Promise<void>;
 }

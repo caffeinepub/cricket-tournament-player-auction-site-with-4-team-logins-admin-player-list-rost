@@ -7,10 +7,10 @@
   "isFixRequest": false,
   "existing_features": [
     {
-      "id": "feature-publish-the-current-draft-version-15-build-as-the-live-production-deployment-without-introducing-any-additional-feature-changes-beyond-what-is-already-in-draft-version-15",
-      "title": "Publish the current Draft Version 15 build as the live/production deployment without introducing any additional feature changes beyond what is already in Draft Version 15.",
+      "id": "feature-in-the-admin-player-management-assigned-players-table-the-assign-player-list-add-a-new-column-labeled-sold-for-that-displays-the-player-s-sold-amount-e-g-3-20-cr-for-each-assigned-player-ensure-the-displayed-team-purse-remaining-purse-across-the-app-reflects-the-updated-backend-calculation-based-on-sold-amounts-spent",
+      "title": "In the Admin → Player Management assigned players table (the \"assign player list\"), add a new column labeled \"Sold For\" that displays the player’s sold amount (e.g., \"₹ 3.20 Cr\") for each assigned player. Ensure the displayed team purse/remaining purse across the app reflects the updated backend calculation based on sold amounts spent.",
       "reqIds": [
-        "REQ-1"
+        "REQ-3"
       ],
       "version": 1
     }
@@ -18,12 +18,28 @@
   "new_feature_requests": [
     {
       "id": "AR-1",
-      "summary": "Publish the latest build (Draft Version 15) / complete deployment",
+      "summary": "In the assign player list, add a column showing each player's sold amount and update each team's purse based on amount spent",
       "reqIds": [],
+      "status": "pending"
+    },
+    {
+      "id": "AR-2",
+      "summary": "Persist each assigned player’s final sold amount (auction winning bid) in the backend, and compute each team’s remaining purse by subtracting the sum of sold amounts for players assigned to that team (not the player base price). Ensure this sold amount is recorded when a player is assigned after an auction, and also when a player is manually assigned to a team (use the player’s base price as the sold amount for manual assignments unless an explicit sold amount is already recorded).",
+      "reqIds": [
+        "REQ-1"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "AR-3",
+      "summary": "Expose the sold amount data to the frontend for the player assignment view. Update or add a backend query that returns, for each player assignment, both the assigned team id and the sold amount for that player so the UI can render it without additional client-side inference.",
+      "reqIds": [
+        "REQ-2"
+      ],
       "status": "pending"
     }
   ],
-  "projectName": "Publish Draft Version 15 (final deployment)",
+  "projectName": "Show sold price in assigned player list and deduct team purse based on amount spent",
   "clarification_mode": "instant",
   "clarification_rounds": 0
 }

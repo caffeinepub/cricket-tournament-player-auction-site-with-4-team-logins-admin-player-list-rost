@@ -61,6 +61,17 @@ export interface Match {
 export interface Player { 'id' : bigint, 'name' : string, 'basePrice' : number }
 export interface Team { 'id' : bigint, 'name' : string, 'totalPurse' : number }
 export interface TeamBudget { 'team' : Team, 'remainingPurse' : number }
+export interface TeamExtended {
+  'id' : bigint,
+  'ownerPrincipals' : Array<Principal>,
+  'name' : string,
+  'totalPurse' : number,
+}
+export interface TeamSummary {
+  'team' : TeamExtended,
+  'remainingPurse' : number,
+  'roster' : Array<[Player, number]>,
+}
 export interface UserProfile { 'name' : string, 'teamId' : [] | [bigint] }
 export type UserRole = { 'admin' : null } |
   { 'user' : null } |
@@ -84,22 +95,33 @@ export interface _SERVICE {
     bigint
   >,
   'createPlayer' : ActorMethod<[string, number], undefined>,
-  'createTeam' : ActorMethod<[string, number], undefined>,
+  'createTeam' : ActorMethod<[string, number, Array<Principal>], undefined>,
   'deletePlayer' : ActorMethod<[bigint], undefined>,
+  'generateFixtures' : ActorMethod<[string, string], undefined>,
   'getAllMatches' : ActorMethod<[], Array<Match>>,
   'getAllPlayers' : ActorMethod<[], Array<Player>>,
   'getAllTeamBudgets' : ActorMethod<[], Array<TeamBudget>>,
-  'getAllTeams' : ActorMethod<[], Array<Team>>,
+  'getAllTeamSummaries' : ActorMethod<[], Array<TeamSummary>>,
+  'getAllTeams' : ActorMethod<[], Array<TeamExtended>>,
   'getAuctionState' : ActorMethod<[bigint], [] | [AuctionState]>,
   'getCallerUserProfile' : ActorMethod<[], [] | [UserProfile]>,
   'getCallerUserRole' : ActorMethod<[], UserRole>,
+  'getExportData' : ActorMethod<
+    [],
+    [Array<TeamSummary>, Array<TeamExtended>, Array<Player>]
+  >,
   'getMatchById' : ActorMethod<[bigint], [] | [Match]>,
-  'getPlayerTeamAssignments' : ActorMethod<[], Array<[bigint, [] | [bigint]]>>,
+  'getPlayerTeamAssignmentsWithSoldAmount' : ActorMethod<
+    [],
+    Array<[bigint, [] | [bigint], number]>
+  >,
   'getPlayersForTeam' : ActorMethod<[bigint], Array<Player>>,
   'getRemainingTeamPurse' : ActorMethod<[bigint], number>,
+  'getTeamSummary' : ActorMethod<[bigint], [] | [TeamSummary]>,
   'getUserProfile' : ActorMethod<[Principal], [] | [UserProfile]>,
   'isCallerAdmin' : ActorMethod<[], boolean>,
   'placeBid' : ActorMethod<[bigint, bigint, number], undefined>,
+  'registerAsUser' : ActorMethod<[], undefined>,
   'removePlayerFromTeam' : ActorMethod<[bigint, bigint], undefined>,
   'saveCallerUserProfile' : ActorMethod<[UserProfile], undefined>,
   'startAuction' : ActorMethod<[bigint, number, boolean], undefined>,
@@ -109,6 +131,7 @@ export interface _SERVICE {
     undefined
   >,
   'updatePlayer' : ActorMethod<[bigint, string, number], undefined>,
+  'updateTeamOwners' : ActorMethod<[bigint, Array<Principal>], undefined>,
   'updateTeamPurse' : ActorMethod<[bigint, number], undefined>,
 }
 export declare const idlService: IDL.ServiceClass;

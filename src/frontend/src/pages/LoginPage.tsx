@@ -4,7 +4,7 @@ import { useInternetIdentity } from '../hooks/useInternetIdentity';
 import { useGetCallerUserProfile } from '../hooks/useQueries';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Trophy, ArrowRight } from 'lucide-react';
+import { ArrowRight } from 'lucide-react';
 
 export default function LoginPage() {
   const { login, loginStatus, identity } = useInternetIdentity();
@@ -42,15 +42,19 @@ export default function LoginPage() {
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-emerald-50 via-white to-amber-50 dark:from-emerald-950 dark:via-background dark:to-amber-950 p-4">
       <Card className="w-full max-w-md shadow-2xl border-2">
         <CardHeader className="text-center space-y-4 pb-8">
-          <div className="mx-auto w-20 h-20 bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-full flex items-center justify-center shadow-lg">
-            <Trophy className="w-12 h-12 text-white" />
+          <div className="mx-auto w-24 h-24 flex items-center justify-center">
+            <img 
+              src="/assets/generated/hpl-logo.dim_512x512.png" 
+              alt="HPL Logo" 
+              className="w-full h-full object-contain"
+            />
           </div>
           <div>
             <CardTitle className="text-3xl font-bold bg-gradient-to-r from-emerald-600 to-emerald-800 dark:from-emerald-400 dark:to-emerald-600 bg-clip-text text-transparent">
-              Cricket Auction
+              Hostel Premier League
             </CardTitle>
             <CardDescription className="text-base mt-2">
-              Collaborative Team Management Portal
+              Team Auction & Management Portal
             </CardDescription>
           </div>
         </CardHeader>

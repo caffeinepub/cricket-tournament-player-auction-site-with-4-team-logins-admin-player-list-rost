@@ -65,6 +65,17 @@ export const TeamBudget = IDL.Record({
   'team' : Team,
   'remainingPurse' : IDL.Float64,
 });
+export const TeamExtended = IDL.Record({
+  'id' : IDL.Nat,
+  'ownerPrincipals' : IDL.Vec(IDL.Principal),
+  'name' : IDL.Text,
+  'totalPurse' : IDL.Float64,
+});
+export const TeamSummary = IDL.Record({
+  'team' : TeamExtended,
+  'remainingPurse' : IDL.Float64,
+  'roster' : IDL.Vec(IDL.Tuple(Player, IDL.Float64)),
+});
 export const AuctionState = IDL.Record({
   'isStopped' : IDL.Bool,
   'playerId' : IDL.Nat,
@@ -94,23 +105,35 @@ export const idlService = IDL.Service({
       [],
     ),
   'createPlayer' : IDL.Func([IDL.Text, IDL.Float64], [], []),
-  'createTeam' : IDL.Func([IDL.Text, IDL.Float64], [], []),
+  'createTeam' : IDL.Func(
+      [IDL.Text, IDL.Float64, IDL.Vec(IDL.Principal)],
+      [],
+      [],
+    ),
   'deletePlayer' : IDL.Func([IDL.Nat], [], []),
+  'generateFixtures' : IDL.Func([IDL.Text, IDL.Text], [], []),
   'getAllMatches' : IDL.Func([], [IDL.Vec(Match)], ['query']),
   'getAllPlayers' : IDL.Func([], [IDL.Vec(Player)], ['query']),
   'getAllTeamBudgets' : IDL.Func([], [IDL.Vec(TeamBudget)], ['query']),
-  'getAllTeams' : IDL.Func([], [IDL.Vec(Team)], ['query']),
+  'getAllTeamSummaries' : IDL.Func([], [IDL.Vec(TeamSummary)], ['query']),
+  'getAllTeams' : IDL.Func([], [IDL.Vec(TeamExtended)], ['query']),
   'getAuctionState' : IDL.Func([IDL.Nat], [IDL.Opt(AuctionState)], ['query']),
   'getCallerUserProfile' : IDL.Func([], [IDL.Opt(UserProfile)], ['query']),
   'getCallerUserRole' : IDL.Func([], [UserRole], ['query']),
-  'getMatchById' : IDL.Func([IDL.Nat], [IDL.Opt(Match)], ['query']),
-  'getPlayerTeamAssignments' : IDL.Func(
+  'getExportData' : IDL.Func(
       [],
-      [IDL.Vec(IDL.Tuple(IDL.Nat, IDL.Opt(IDL.Nat)))],
+      [IDL.Vec(TeamSummary), IDL.Vec(TeamExtended), IDL.Vec(Player)],
+      ['query'],
+    ),
+  'getMatchById' : IDL.Func([IDL.Nat], [IDL.Opt(Match)], ['query']),
+  'getPlayerTeamAssignmentsWithSoldAmount' : IDL.Func(
+      [],
+      [IDL.Vec(IDL.Tuple(IDL.Nat, IDL.Opt(IDL.Nat), IDL.Float64))],
       ['query'],
     ),
   'getPlayersForTeam' : IDL.Func([IDL.Nat], [IDL.Vec(Player)], ['query']),
   'getRemainingTeamPurse' : IDL.Func([IDL.Nat], [IDL.Float64], ['query']),
+  'getTeamSummary' : IDL.Func([IDL.Nat], [IDL.Opt(TeamSummary)], ['query']),
   'getUserProfile' : IDL.Func(
       [IDL.Principal],
       [IDL.Opt(UserProfile)],
@@ -118,6 +141,7 @@ export const idlService = IDL.Service({
     ),
   'isCallerAdmin' : IDL.Func([], [IDL.Bool], ['query']),
   'placeBid' : IDL.Func([IDL.Nat, IDL.Nat, IDL.Float64], [], []),
+  'registerAsUser' : IDL.Func([], [], []),
   'removePlayerFromTeam' : IDL.Func([IDL.Nat, IDL.Nat], [], []),
   'saveCallerUserProfile' : IDL.Func([UserProfile], [], []),
   'startAuction' : IDL.Func([IDL.Nat, IDL.Float64, IDL.Bool], [], []),
@@ -128,6 +152,7 @@ export const idlService = IDL.Service({
       [],
     ),
   'updatePlayer' : IDL.Func([IDL.Nat, IDL.Text, IDL.Float64], [], []),
+  'updateTeamOwners' : IDL.Func([IDL.Nat, IDL.Vec(IDL.Principal)], [], []),
   'updateTeamPurse' : IDL.Func([IDL.Nat, IDL.Float64], [], []),
 });
 
@@ -191,6 +216,17 @@ export const idlFactory = ({ IDL }) => {
     'team' : Team,
     'remainingPurse' : IDL.Float64,
   });
+  const TeamExtended = IDL.Record({
+    'id' : IDL.Nat,
+    'ownerPrincipals' : IDL.Vec(IDL.Principal),
+    'name' : IDL.Text,
+    'totalPurse' : IDL.Float64,
+  });
+  const TeamSummary = IDL.Record({
+    'team' : TeamExtended,
+    'remainingPurse' : IDL.Float64,
+    'roster' : IDL.Vec(IDL.Tuple(Player, IDL.Float64)),
+  });
   const AuctionState = IDL.Record({
     'isStopped' : IDL.Bool,
     'playerId' : IDL.Nat,
@@ -220,23 +256,35 @@ export const idlFactory = ({ IDL }) => {
         [],
       ),
     'createPlayer' : IDL.Func([IDL.Text, IDL.Float64], [], []),
-    'createTeam' : IDL.Func([IDL.Text, IDL.Float64], [], []),
+    'createTeam' : IDL.Func(
+        [IDL.Text, IDL.Float64, IDL.Vec(IDL.Principal)],
+        [],
+        [],
+      ),
     'deletePlayer' : IDL.Func([IDL.Nat], [], []),
+    'generateFixtures' : IDL.Func([IDL.Text, IDL.Text], [], []),
     'getAllMatches' : IDL.Func([], [IDL.Vec(Match)], ['query']),
     'getAllPlayers' : IDL.Func([], [IDL.Vec(Player)], ['query']),
     'getAllTeamBudgets' : IDL.Func([], [IDL.Vec(TeamBudget)], ['query']),
-    'getAllTeams' : IDL.Func([], [IDL.Vec(Team)], ['query']),
+    'getAllTeamSummaries' : IDL.Func([], [IDL.Vec(TeamSummary)], ['query']),
+    'getAllTeams' : IDL.Func([], [IDL.Vec(TeamExtended)], ['query']),
     'getAuctionState' : IDL.Func([IDL.Nat], [IDL.Opt(AuctionState)], ['query']),
     'getCallerUserProfile' : IDL.Func([], [IDL.Opt(UserProfile)], ['query']),
     'getCallerUserRole' : IDL.Func([], [UserRole], ['query']),
-    'getMatchById' : IDL.Func([IDL.Nat], [IDL.Opt(Match)], ['query']),
-    'getPlayerTeamAssignments' : IDL.Func(
+    'getExportData' : IDL.Func(
         [],
-        [IDL.Vec(IDL.Tuple(IDL.Nat, IDL.Opt(IDL.Nat)))],
+        [IDL.Vec(TeamSummary), IDL.Vec(TeamExtended), IDL.Vec(Player)],
+        ['query'],
+      ),
+    'getMatchById' : IDL.Func([IDL.Nat], [IDL.Opt(Match)], ['query']),
+    'getPlayerTeamAssignmentsWithSoldAmount' : IDL.Func(
+        [],
+        [IDL.Vec(IDL.Tuple(IDL.Nat, IDL.Opt(IDL.Nat), IDL.Float64))],
         ['query'],
       ),
     'getPlayersForTeam' : IDL.Func([IDL.Nat], [IDL.Vec(Player)], ['query']),
     'getRemainingTeamPurse' : IDL.Func([IDL.Nat], [IDL.Float64], ['query']),
+    'getTeamSummary' : IDL.Func([IDL.Nat], [IDL.Opt(TeamSummary)], ['query']),
     'getUserProfile' : IDL.Func(
         [IDL.Principal],
         [IDL.Opt(UserProfile)],
@@ -244,6 +292,7 @@ export const idlFactory = ({ IDL }) => {
       ),
     'isCallerAdmin' : IDL.Func([], [IDL.Bool], ['query']),
     'placeBid' : IDL.Func([IDL.Nat, IDL.Nat, IDL.Float64], [], []),
+    'registerAsUser' : IDL.Func([], [], []),
     'removePlayerFromTeam' : IDL.Func([IDL.Nat, IDL.Nat], [], []),
     'saveCallerUserProfile' : IDL.Func([UserProfile], [], []),
     'startAuction' : IDL.Func([IDL.Nat, IDL.Float64, IDL.Bool], [], []),
@@ -254,6 +303,7 @@ export const idlFactory = ({ IDL }) => {
         [],
       ),
     'updatePlayer' : IDL.Func([IDL.Nat, IDL.Text, IDL.Float64], [], []),
+    'updateTeamOwners' : IDL.Func([IDL.Nat, IDL.Vec(IDL.Principal)], [], []),
     'updateTeamPurse' : IDL.Func([IDL.Nat, IDL.Float64], [], []),
   });
 };

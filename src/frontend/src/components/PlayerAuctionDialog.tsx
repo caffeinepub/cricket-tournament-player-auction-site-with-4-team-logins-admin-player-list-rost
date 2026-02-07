@@ -6,10 +6,9 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
-import { Gavel, TrendingUp, Trophy, StopCircle, Crown } from 'lucide-react';
+import { Gavel, TrendingUp, Trophy, StopCircle, Crown, Info } from 'lucide-react';
 import { toast } from 'sonner';
 import { useGetAuctionState, useStartAuction, usePlaceBid, useAssignPlayerAfterAuction, useStopAuction } from '../hooks/useQueries';
-import LeadingTeamIndicator from './LeadingTeamIndicator';
 import type { Player, Team } from '../backend';
 
 interface PlayerAuctionDialogProps {
@@ -20,7 +19,8 @@ interface PlayerAuctionDialogProps {
 }
 
 export default function PlayerAuctionDialog({ player, teams, open, onOpenChange }: PlayerAuctionDialogProps) {
-  const { data: auctionState, isLoading: auctionLoading } = useGetAuctionState(player.id);
+  // Enable polling when dialog is open
+  const { data: auctionState, isLoading: auctionLoading } = useGetAuctionState(player.id, { enablePolling: open });
   const startAuction = useStartAuction();
   const placeBid = usePlaceBid();
   const assignPlayerAfterAuction = useAssignPlayerAfterAuction();
@@ -58,7 +58,7 @@ export default function PlayerAuctionDialog({ player, teams, open, onOpenChange 
       if (message.includes('already exists')) {
         toast.error('Auction for this player already exists');
       } else if (message.includes('Unauthorized')) {
-        toast.error('You do not have permission to start auctions');
+        toast.error('You must be signed in to start auctions');
       } else {
         toast.error(message || 'Failed to start auction');
       }
@@ -99,7 +99,7 @@ export default function PlayerAuctionDialog({ player, teams, open, onOpenChange 
       });
       
       const teamName = teams.find(t => t.id.toString() === selectedTeamId)?.name || 'Team';
-      toast.success(`${teamName} bid ₹${newBid.toFixed(1)} Cr (+₹${increment.toFixed(1)} Cr)`);
+      toast.success(`Bid placed for ${teamName}: ₹${newBid.toFixed(1)} Cr (+₹${increment.toFixed(1)} Cr)`);
       
       // Reset increment to default for next bid
       setIncrementAmount(defaultIncrement.toFixed(1));
@@ -117,6 +117,8 @@ export default function PlayerAuctionDialog({ player, teams, open, onOpenChange 
         toast.error('Auction has been stopped, no more bids are accepted');
       } else if (message.includes('Insufficient team budget')) {
         toast.error('Team does not have sufficient budget for this bid');
+      } else if (message.includes('Unauthorized') || message.includes('Only users can place bids')) {
+        toast.error('You must be signed in to place bids');
       } else {
         toast.error(message || 'Failed to place bid');
       }
@@ -134,7 +136,7 @@ export default function PlayerAuctionDialog({ player, teams, open, onOpenChange 
       } else if (message.includes('does not exist')) {
         toast.error('Auction has not been started yet');
       } else if (message.includes('Unauthorized')) {
-        toast.error('You do not have permission to stop auctions');
+        toast.error('You must be signed in to stop auctions');
       } else {
         toast.error(message || 'Failed to stop auction');
       }
@@ -163,7 +165,7 @@ export default function PlayerAuctionDialog({ player, teams, open, onOpenChange 
       } else if (message.includes('does not exist')) {
         toast.error('Auction has not been started yet');
       } else if (message.includes('Unauthorized')) {
-        toast.error('You do not have permission to assign players');
+        toast.error('You must be signed in to assign players');
       } else if (message.includes('Insufficient')) {
         toast.error('Winning team has insufficient budget');
       } else {
@@ -315,6 +317,14 @@ export default function PlayerAuctionDialog({ player, teams, open, onOpenChange 
                 <>
                   {isAuctionActive && (
                     <div className="space-y-3">
+                      {/* Info banner about bidding for any team */}
+                      <div className="flex items-start gap-2 p-3 rounded-lg bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800">
+                        <Info className="w-4 h-4 text-blue-600 dark:text-blue-400 mt-0.5 flex-shrink-0" />
+                        <p className="text-xs text-blue-900 dark:text-blue-100">
+                          You can place bids on behalf of any team. Select the team you want to bid for below.
+                        </p>
+                      </div>
+
                       <div className="space-y-2">
                         <Label htmlFor="increment-amount" className="flex items-center gap-2">
                           <TrendingUp className="w-4 h-4" />
@@ -338,15 +348,15 @@ export default function PlayerAuctionDialog({ player, teams, open, onOpenChange 
                       </div>
 
                       <div className="space-y-2">
-                        <Label htmlFor="bidding-team">
-                          Bidding Team
+                        <Label htmlFor="bidding-team" className="flex items-center gap-2">
+                          <span>Select Team to Bid For</span>
                           {!leadingTeam && (
-                            <span className="ml-2 text-xs text-muted-foreground">(No current leader)</span>
+                            <span className="text-xs text-muted-foreground">(No current leader)</span>
                           )}
                         </Label>
                         <Select value={selectedTeamId} onValueChange={setSelectedTeamId}>
                           <SelectTrigger id="bidding-team">
-                            <SelectValue placeholder="Select team" />
+                            <SelectValue placeholder="Choose any team" />
                           </SelectTrigger>
                           <SelectContent>
                             {teams.map((team) => {
@@ -371,6 +381,9 @@ export default function PlayerAuctionDialog({ player, teams, open, onOpenChange 
                             })}
                           </SelectContent>
                         </Select>
+                        <p className="text-xs text-muted-foreground">
+                          All teams are available for bidding
+                        </p>
                       </div>
 
                       <Button
@@ -410,37 +423,10 @@ export default function PlayerAuctionDialog({ player, teams, open, onOpenChange 
 
                       {!canAssign && (
                         <p className="text-xs text-center text-muted-foreground">
-                          No bids were placed - cannot assign player
+                          Cannot assign player without any bids
                         </p>
-                      )}
-
-                      {leadingTeam && (
-                        <div className="p-3 rounded-lg bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-800">
-                          <div className="flex items-center justify-center gap-2">
-                            <Trophy className="w-4 h-4 text-emerald-600" />
-                            <span className="text-sm font-medium text-emerald-900 dark:text-emerald-100">
-                              Winner: {leadingTeam.name} at ₹{auctionState.highestBid} Cr
-                            </span>
-                          </div>
-                        </div>
                       )}
                     </>
-                  )}
-
-                  {auctionState.isFinalized && (
-                    <div className="p-4 rounded-lg bg-emerald-50 dark:bg-emerald-950/20 border-2 border-emerald-300 dark:border-emerald-700">
-                      <div className="flex items-center justify-center gap-2">
-                        <Trophy className="w-5 h-5 text-emerald-600" />
-                        <span className="text-sm font-semibold text-emerald-900 dark:text-emerald-100">
-                          Auction Finalized
-                        </span>
-                      </div>
-                      {leadingTeam && (
-                        <p className="text-center text-sm text-emerald-700 dark:text-emerald-300 mt-2">
-                          {player.name} assigned to {leadingTeam.name} for ₹{auctionState.highestBid} Cr
-                        </p>
-                      )}
-                    </div>
                   )}
                 </>
               )}

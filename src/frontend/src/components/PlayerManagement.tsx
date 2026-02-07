@@ -1,118 +1,98 @@
-import { useState, useMemo } from 'react';
-import { useGetAllPlayers, useCreatePlayer, useUpdatePlayer, useDeletePlayer, useGetPlayerTeamAssignments, useGetAllTeams, useAddPlayerToTeam } from '../hooks/useQueries';
+import { useState } from 'react';
+import { useGetAllPlayers, useGetPlayerTeamAssignmentsWithSoldAmount, useCreatePlayer, useUpdatePlayer, useDeletePlayer, useGetAllTeams, useAddPlayerToTeam, useRemovePlayerFromTeam } from '../hooks/useQueries';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { Badge } from '@/components/ui/badge';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plus, Edit, Trash2, UserPlus, Gavel } from 'lucide-react';
-import { toast } from 'sonner';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Badge } from '@/components/ui/badge';
+import { Separator } from '@/components/ui/separator';
+import { toast } from 'sonner';
+import { Plus, Edit, Trash2, UserPlus, UserMinus, Gavel, AlertCircle } from 'lucide-react';
 import PlayerAuctionDialog from './PlayerAuctionDialog';
 import type { Player } from '../backend';
 
 export default function PlayerManagement() {
-  const { data: players, isLoading } = useGetAllPlayers();
-  const { data: assignments, isLoading: assignmentsLoading } = useGetPlayerTeamAssignments();
+  const { data: players, isLoading: playersLoading } = useGetAllPlayers();
+  const { data: assignments, isLoading: assignmentsLoading } = useGetPlayerTeamAssignmentsWithSoldAmount();
   const { data: teams } = useGetAllTeams();
-  const createPlayer = useCreatePlayer();
-  const updatePlayer = useUpdatePlayer();
-  const deletePlayer = useDeletePlayer();
-  const addPlayerToTeam = useAddPlayerToTeam();
+  const createPlayerMutation = useCreatePlayer();
+  const updatePlayerMutation = useUpdatePlayer();
+  const deletePlayerMutation = useDeletePlayer();
+  const addPlayerToTeamMutation = useAddPlayerToTeam();
+  const removePlayerFromTeamMutation = useRemovePlayerFromTeam();
 
-  const [isCreateOpen, setIsCreateOpen] = useState(false);
-  const [isEditOpen, setIsEditOpen] = useState(false);
-  const [editingPlayer, setEditingPlayer] = useState<Player | null>(null);
+  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [isAssignDialogOpen, setIsAssignDialogOpen] = useState(false);
+  const [isAuctionDialogOpen, setIsAuctionDialogOpen] = useState(false);
+  const [selectedPlayer, setSelectedPlayer] = useState<Player | null>(null);
+  const [selectedTeamId, setSelectedTeamId] = useState<string>('');
 
   const [newPlayerName, setNewPlayerName] = useState('');
   const [newPlayerPrice, setNewPlayerPrice] = useState('');
 
-  const [assigningPlayerId, setAssigningPlayerId] = useState<bigint | null>(null);
-  const [selectedTeamId, setSelectedTeamId] = useState<string>('');
+  const [editPlayerName, setEditPlayerName] = useState('');
+  const [editPlayerPrice, setEditPlayerPrice] = useState('');
 
-  const [auctionPlayer, setAuctionPlayer] = useState<Player | null>(null);
-
-  // Partition players into unassigned and assigned
-  const { unassignedPlayers, assignedPlayers } = useMemo(() => {
-    if (!players || !assignments) {
-      return { unassignedPlayers: [], assignedPlayers: [] };
-    }
-
-    const unassigned: Player[] = [];
-    const assigned: Player[] = [];
-
-    players.forEach((player) => {
-      const teamId = assignments.get(player.id.toString());
-      if (teamId === null || teamId === undefined) {
-        unassigned.push(player);
-      } else {
-        assigned.push(player);
-      }
-    });
-
-    return { unassignedPlayers: unassigned, assignedPlayers: assigned };
-  }, [players, assignments]);
-
-  // Helper to get team name by ID
-  const getTeamName = (playerId: bigint): string => {
-    if (!assignments || !teams) return 'Unknown';
-    const teamId = assignments.get(playerId.toString());
-    if (!teamId) return 'Unassigned';
-    const team = teams.find((t) => t.id === teamId);
-    return team?.name || 'Unknown';
-  };
-
-  const handleCreate = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleCreatePlayer = async () => {
     if (!newPlayerName.trim() || !newPlayerPrice) {
       toast.error('Please fill in all fields');
       return;
     }
 
+    const price = parseFloat(newPlayerPrice);
+    if (isNaN(price) || price <= 0) {
+      toast.error('Please enter a valid price');
+      return;
+    }
+
     try {
-      await createPlayer.mutateAsync({
-        name: newPlayerName.trim(),
-        basePrice: parseFloat(newPlayerPrice),
-      });
+      await createPlayerMutation.mutateAsync({ name: newPlayerName, basePrice: price });
       toast.success('Player created successfully');
-      setIsCreateOpen(false);
       setNewPlayerName('');
       setNewPlayerPrice('');
+      setIsCreateDialogOpen(false);
     } catch (error: any) {
       toast.error(error.message || 'Failed to create player');
     }
   };
 
-  const handleUpdate = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!editingPlayer || !newPlayerName.trim() || !newPlayerPrice) {
+  const handleEditPlayer = async () => {
+    if (!selectedPlayer || !editPlayerName.trim() || !editPlayerPrice) {
       toast.error('Please fill in all fields');
       return;
     }
 
+    const price = parseFloat(editPlayerPrice);
+    if (isNaN(price) || price <= 0) {
+      toast.error('Please enter a valid price');
+      return;
+    }
+
     try {
-      await updatePlayer.mutateAsync({
-        playerId: editingPlayer.id,
-        name: newPlayerName.trim(),
-        basePrice: parseFloat(newPlayerPrice),
+      await updatePlayerMutation.mutateAsync({
+        playerId: selectedPlayer.id,
+        name: editPlayerName,
+        basePrice: price,
       });
       toast.success('Player updated successfully');
-      setIsEditOpen(false);
-      setEditingPlayer(null);
-      setNewPlayerName('');
-      setNewPlayerPrice('');
+      setIsEditDialogOpen(false);
+      setSelectedPlayer(null);
     } catch (error: any) {
       toast.error(error.message || 'Failed to update player');
     }
   };
 
-  const handleDelete = async (playerId: bigint) => {
+  const handleDeletePlayer = async (playerId: bigint) => {
+    if (!confirm('Are you sure you want to delete this player?')) return;
+
     try {
-      await deletePlayer.mutateAsync(playerId);
+      await deletePlayerMutation.mutateAsync(playerId);
       toast.success('Player deleted successfully');
     } catch (error: any) {
       toast.error(error.message || 'Failed to delete player');
@@ -120,346 +100,363 @@ export default function PlayerManagement() {
   };
 
   const handleAssignPlayer = async () => {
-    if (!assigningPlayerId || !selectedTeamId) {
+    if (!selectedPlayer || !selectedTeamId) {
       toast.error('Please select a team');
       return;
     }
 
     try {
-      await addPlayerToTeam.mutateAsync({
-        playerId: assigningPlayerId,
+      await addPlayerToTeamMutation.mutateAsync({
+        playerId: selectedPlayer.id,
         teamId: BigInt(selectedTeamId),
       });
-      toast.success('Player assigned to team successfully');
-      setAssigningPlayerId(null);
+      toast.success('Player assigned successfully');
+      setIsAssignDialogOpen(false);
+      setSelectedPlayer(null);
       setSelectedTeamId('');
     } catch (error: any) {
       toast.error(error.message || 'Failed to assign player');
     }
   };
 
-  const openEditDialog = (player: Player) => {
-    setEditingPlayer(player);
-    setNewPlayerName(player.name);
-    setNewPlayerPrice(player.basePrice.toString());
-    setIsEditOpen(true);
+  const handleRemovePlayer = async (playerId: bigint, teamId: bigint) => {
+    if (!confirm('Are you sure you want to remove this player from the team?')) return;
+
+    try {
+      await removePlayerFromTeamMutation.mutateAsync({ playerId, teamId });
+      toast.success('Player removed successfully');
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to remove player');
+    }
   };
 
-  const openAssignDialog = (playerId: bigint) => {
-    setAssigningPlayerId(playerId);
+  const openEditDialog = (player: Player) => {
+    setSelectedPlayer(player);
+    setEditPlayerName(player.name);
+    setEditPlayerPrice(player.basePrice.toString());
+    setIsEditDialogOpen(true);
+  };
+
+  const openAssignDialog = (player: Player) => {
+    setSelectedPlayer(player);
     setSelectedTeamId('');
+    setIsAssignDialogOpen(true);
   };
 
   const openAuctionDialog = (player: Player) => {
-    setAuctionPlayer(player);
+    setSelectedPlayer(player);
+    setIsAuctionDialogOpen(true);
   };
 
-  const renderPlayerTable = (playerList: Player[], title: string, showAssignment: boolean) => (
-    <div className="space-y-3">
-      <h3 className="text-lg font-semibold text-foreground">{title}</h3>
-      {playerList.length > 0 ? (
-        <div className="rounded-lg border overflow-hidden">
-          <Table>
-            <TableHeader>
-              <TableRow className="bg-muted/50">
-                <TableHead className="font-semibold">Player Name</TableHead>
-                <TableHead className="font-semibold">Base Price</TableHead>
-                {showAssignment && <TableHead className="font-semibold">Team</TableHead>}
-                <TableHead className="font-semibold text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {playerList.map((player) => (
-                <TableRow key={Number(player.id)} className="hover:bg-muted/30">
-                  <TableCell className="font-medium">{player.name}</TableCell>
-                  <TableCell>
-                    <Badge variant="secondary" className="font-semibold">
-                      ₹{player.basePrice.toLocaleString()} Cr
-                    </Badge>
-                  </TableCell>
-                  {showAssignment && (
-                    <TableCell>
-                      <Badge variant="outline" className="font-medium">
-                        {getTeamName(player.id)}
-                      </Badge>
-                    </TableCell>
-                  )}
-                  <TableCell className="text-right">
-                    <div className="flex justify-end gap-2">
-                      {!showAssignment && (
-                        <>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="text-amber-600 hover:text-amber-700 hover:bg-amber-50"
-                            onClick={() => openAuctionDialog(player)}
-                          >
-                            <Gavel className="w-4 h-4" />
-                          </Button>
-                          <Dialog
-                            open={assigningPlayerId === player.id}
-                            onOpenChange={(open) => {
-                              if (!open) {
-                                setAssigningPlayerId(null);
-                                setSelectedTeamId('');
-                              }
-                            }}
-                          >
-                            <DialogTrigger asChild>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                className="text-emerald-600 hover:text-emerald-700"
-                                onClick={() => openAssignDialog(player.id)}
-                              >
-                                <UserPlus className="w-4 h-4" />
-                              </Button>
-                            </DialogTrigger>
-                            <DialogContent>
-                              <DialogHeader>
-                                <DialogTitle>Assign Player to Team</DialogTitle>
-                                <DialogDescription>
-                                  Select a team for {player.name}
-                                </DialogDescription>
-                              </DialogHeader>
-                              <div className="space-y-4">
-                                <div className="space-y-2">
-                                  <Label>Select Team</Label>
-                                  <Select value={selectedTeamId} onValueChange={setSelectedTeamId}>
-                                    <SelectTrigger>
-                                      <SelectValue placeholder="Choose a team" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                      {teams?.map((team) => (
-                                        <SelectItem key={Number(team.id)} value={team.id.toString()}>
-                                          {team.name}
-                                        </SelectItem>
-                                      ))}
-                                    </SelectContent>
-                                  </Select>
-                                </div>
-                                <Button
-                                  onClick={handleAssignPlayer}
-                                  className="w-full"
-                                  disabled={addPlayerToTeam.isPending || !selectedTeamId}
-                                >
-                                  {addPlayerToTeam.isPending ? 'Assigning...' : 'Assign to Team'}
-                                </Button>
-                              </div>
-                            </DialogContent>
-                          </Dialog>
-                        </>
-                      )}
-                      {showAssignment && (
-                        <Dialog
-                          open={assigningPlayerId === player.id}
-                          onOpenChange={(open) => {
-                            if (!open) {
-                              setAssigningPlayerId(null);
-                              setSelectedTeamId('');
-                            }
-                          }}
-                        >
-                          <DialogTrigger asChild>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className="text-amber-600 hover:text-amber-700"
-                              onClick={() => openAssignDialog(player.id)}
-                            >
-                              <UserPlus className="w-4 h-4" />
-                            </Button>
-                          </DialogTrigger>
-                          <DialogContent>
-                            <DialogHeader>
-                              <DialogTitle>Move Player to Team</DialogTitle>
-                              <DialogDescription>
-                                Select a new team for {player.name}
-                              </DialogDescription>
-                            </DialogHeader>
-                            <div className="space-y-4">
-                              <div className="space-y-2">
-                                <Label>Select Team</Label>
-                                <Select value={selectedTeamId} onValueChange={setSelectedTeamId}>
-                                  <SelectTrigger>
-                                    <SelectValue placeholder="Choose a team" />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    {teams?.map((team) => (
-                                      <SelectItem key={Number(team.id)} value={team.id.toString()}>
-                                        {team.name}
-                                      </SelectItem>
-                                    ))}
-                                  </SelectContent>
-                                </Select>
-                              </div>
-                              <Button
-                                onClick={handleAssignPlayer}
-                                className="w-full"
-                                disabled={addPlayerToTeam.isPending || !selectedTeamId}
-                              >
-                                {addPlayerToTeam.isPending ? 'Moving...' : 'Move to Team'}
-                              </Button>
-                            </div>
-                          </DialogContent>
-                        </Dialog>
-                      )}
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => openEditDialog(player)}
-                      >
-                        <Edit className="w-4 h-4" />
-                      </Button>
-                      <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                          <Button variant="outline" size="sm" className="text-destructive hover:text-destructive">
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>Delete Player</AlertDialogTitle>
-                            <AlertDialogDescription>
-                              Are you sure you want to delete {player.name}? This will remove them from all teams.
-                            </AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel>Cancel</AlertDialogCancel>
-                            <AlertDialogAction
-                              onClick={() => handleDelete(player.id)}
-                              className="bg-destructive hover:bg-destructive/90"
-                            >
-                              Delete
-                            </AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
-      ) : (
-        <div className="text-center py-8 text-muted-foreground border rounded-lg bg-muted/20">
-          No {title.toLowerCase()} yet.
-        </div>
-      )}
-    </div>
-  );
+  if (playersLoading || assignmentsLoading) {
+    return (
+      <div className="space-y-4">
+        <Skeleton className="h-12 w-full" />
+        <Skeleton className="h-64 w-full" />
+      </div>
+    );
+  }
+
+  // Partition players into unassigned and assigned
+  const unassignedPlayers = players?.filter(p => !assignments?.get(p.id.toString())?.teamId) || [];
+  const assignedPlayers = players?.filter(p => assignments?.get(p.id.toString())?.teamId) || [];
 
   return (
-    <Card className="border-2 shadow-lg">
-      <CardHeader>
-        <div className="flex items-center justify-between">
-          <div>
-            <CardTitle className="text-2xl">Player Management</CardTitle>
-            <CardDescription>Create, edit, and manage players in the auction</CardDescription>
-          </div>
-          <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
-            <DialogTrigger asChild>
-              <Button className="bg-emerald-600 hover:bg-emerald-700">
-                <Plus className="w-4 h-4 mr-2" />
-                Add Player
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Create New Player</DialogTitle>
-                <DialogDescription>Add a new player to the auction</DialogDescription>
-              </DialogHeader>
-              <form onSubmit={handleCreate} className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="create-name">Player Name</Label>
-                  <Input
-                    id="create-name"
-                    placeholder="Enter player name"
-                    value={newPlayerName}
-                    onChange={(e) => setNewPlayerName(e.target.value)}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="create-price">Base Price (Crore)</Label>
-                  <Input
-                    id="create-price"
-                    type="number"
-                    step="0.01"
-                    placeholder="Enter base price in crore"
-                    value={newPlayerPrice}
-                    onChange={(e) => setNewPlayerPrice(e.target.value)}
-                  />
-                </div>
-                <Button type="submit" className="w-full" disabled={createPlayer.isPending}>
-                  {createPlayer.isPending ? 'Creating...' : 'Create Player'}
-                </Button>
-              </form>
-            </DialogContent>
-          </Dialog>
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-2xl font-bold">Player Management</h2>
+          <p className="text-muted-foreground">Create and manage players</p>
         </div>
-      </CardHeader>
-      <CardContent>
-        {isLoading || assignmentsLoading ? (
-          <div className="space-y-2">
-            {[1, 2, 3, 4, 5].map(i => <Skeleton key={i} className="h-12 w-full" />)}
-          </div>
-        ) : players && players.length > 0 ? (
-          <div className="space-y-6">
-            {renderPlayerTable(unassignedPlayers, 'Unassigned Players', false)}
-            {renderPlayerTable(assignedPlayers, 'Assigned Players', true)}
-          </div>
-        ) : (
-          <div className="text-center py-12 text-muted-foreground">
-            No players created yet. Click "Add Player" to get started.
-          </div>
-        )}
-
-        <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
+        <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+          <DialogTrigger asChild>
+            <Button className="gap-2">
+              <Plus className="w-4 h-4" />
+              Create Player
+            </Button>
+          </DialogTrigger>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Edit Player</DialogTitle>
-              <DialogDescription>Update player information</DialogDescription>
+              <DialogTitle>Create New Player</DialogTitle>
+              <DialogDescription>Add a new player to the auction</DialogDescription>
             </DialogHeader>
-            <form onSubmit={handleUpdate} className="space-y-4">
+            <div className="space-y-4 py-4">
               <div className="space-y-2">
-                <Label htmlFor="edit-name">Player Name</Label>
+                <Label htmlFor="player-name">Player Name</Label>
                 <Input
-                  id="edit-name"
+                  id="player-name"
                   placeholder="Enter player name"
                   value={newPlayerName}
                   onChange={(e) => setNewPlayerName(e.target.value)}
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="edit-price">Base Price (Crore)</Label>
+                <Label htmlFor="player-price">Base Price (Crore)</Label>
                 <Input
-                  id="edit-price"
+                  id="player-price"
                   type="number"
-                  step="0.01"
-                  placeholder="Enter base price in crore"
+                  step="0.1"
+                  placeholder="e.g., 2.5"
                   value={newPlayerPrice}
                   onChange={(e) => setNewPlayerPrice(e.target.value)}
                 />
               </div>
-              <Button type="submit" className="w-full" disabled={updatePlayer.isPending}>
-                {updatePlayer.isPending ? 'Updating...' : 'Update Player'}
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setIsCreateDialogOpen(false)}>
+                Cancel
               </Button>
-            </form>
+              <Button onClick={handleCreatePlayer} disabled={createPlayerMutation.isPending}>
+                {createPlayerMutation.isPending ? 'Creating...' : 'Create Player'}
+              </Button>
+            </DialogFooter>
           </DialogContent>
         </Dialog>
+      </div>
 
-        {auctionPlayer && teams && (
-          <PlayerAuctionDialog
-            player={auctionPlayer}
-            teams={teams}
-            open={!!auctionPlayer}
-            onOpenChange={(open) => {
-              if (!open) setAuctionPlayer(null);
-            }}
-          />
-        )}
-      </CardContent>
-    </Card>
+      {!players || players.length === 0 ? (
+        <Alert>
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>
+            No players created yet. Create your first player to get started.
+          </AlertDescription>
+        </Alert>
+      ) : (
+        <div className="space-y-6">
+          {/* Unassigned Players */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Unassigned Players ({unassignedPlayers.length})</CardTitle>
+              <CardDescription>Players available for auction or assignment</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {unassignedPlayers.length === 0 ? (
+                <Alert>
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription>All players have been assigned to teams</AlertDescription>
+                </Alert>
+              ) : (
+                <div className="rounded-md border">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Player Name</TableHead>
+                        <TableHead>Base Price</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead className="text-right">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {unassignedPlayers.map((player) => (
+                        <TableRow key={player.id.toString()}>
+                          <TableCell className="font-medium">{player.name}</TableCell>
+                          <TableCell>₹ {player.basePrice.toFixed(2)} Cr</TableCell>
+                          <TableCell>
+                            <Badge variant="outline">Unassigned</Badge>
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <div className="flex items-center justify-end gap-2">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => openAuctionDialog(player)}
+                                className="gap-1"
+                              >
+                                <Gavel className="w-4 h-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => openAssignDialog(player)}
+                                className="gap-1"
+                              >
+                                <UserPlus className="w-4 h-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => openEditDialog(player)}
+                              >
+                                <Edit className="w-4 h-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleDeletePlayer(player.id)}
+                                className="text-destructive hover:text-destructive"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Assigned Players */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Assigned Players ({assignedPlayers.length})</CardTitle>
+              <CardDescription>Players currently assigned to teams</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {assignedPlayers.length === 0 ? (
+                <Alert>
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription>No players have been assigned yet</AlertDescription>
+                </Alert>
+              ) : (
+                <div className="rounded-md border">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Player Name</TableHead>
+                        <TableHead>Base Price</TableHead>
+                        <TableHead>Team</TableHead>
+                        <TableHead>Sold For</TableHead>
+                        <TableHead className="text-right">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {assignedPlayers.map((player) => {
+                        const assignment = assignments?.get(player.id.toString());
+                        const teamId = assignment?.teamId;
+                        const soldAmount = assignment?.soldAmount || 0;
+                        const team = teams?.find(t => t.id === teamId);
+                        return (
+                          <TableRow key={player.id.toString()}>
+                            <TableCell className="font-medium">{player.name}</TableCell>
+                            <TableCell>₹ {player.basePrice.toFixed(2)} Cr</TableCell>
+                            <TableCell>
+                              <Badge variant="secondary">{team?.name || 'Unknown'}</Badge>
+                            </TableCell>
+                            <TableCell>
+                              <span className="font-semibold text-primary">
+                                ₹ {soldAmount.toFixed(2)} Cr
+                              </span>
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <div className="flex items-center justify-end gap-2">
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => openEditDialog(player)}
+                                >
+                                  <Edit className="w-4 h-4" />
+                                </Button>
+                                {teamId && (
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => handleRemovePlayer(player.id, teamId)}
+                                    className="gap-1"
+                                  >
+                                    <UserMinus className="w-4 h-4" />
+                                  </Button>
+                                )}
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Edit Dialog */}
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Player</DialogTitle>
+            <DialogDescription>Update player information</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="edit-player-name">Player Name</Label>
+              <Input
+                id="edit-player-name"
+                value={editPlayerName}
+                onChange={(e) => setEditPlayerName(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-player-price">Base Price (Crore)</Label>
+              <Input
+                id="edit-player-price"
+                type="number"
+                step="0.1"
+                value={editPlayerPrice}
+                onChange={(e) => setEditPlayerPrice(e.target.value)}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleEditPlayer} disabled={updatePlayerMutation.isPending}>
+              {updatePlayerMutation.isPending ? 'Updating...' : 'Update Player'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Assign Dialog */}
+      <Dialog open={isAssignDialogOpen} onOpenChange={setIsAssignDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Assign Player to Team</DialogTitle>
+            <DialogDescription>
+              Select a team for {selectedPlayer?.name}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="team-select">Select Team</Label>
+              <Select value={selectedTeamId} onValueChange={setSelectedTeamId}>
+                <SelectTrigger id="team-select">
+                  <SelectValue placeholder="Choose a team" />
+                </SelectTrigger>
+                <SelectContent>
+                  {teams?.map((team) => (
+                    <SelectItem key={team.id.toString()} value={team.id.toString()}>
+                      {team.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsAssignDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleAssignPlayer} disabled={addPlayerToTeamMutation.isPending}>
+              {addPlayerToTeamMutation.isPending ? 'Assigning...' : 'Assign Player'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Auction Dialog */}
+      {selectedPlayer && (
+        <PlayerAuctionDialog
+          player={selectedPlayer}
+          teams={teams || []}
+          open={isAuctionDialogOpen}
+          onOpenChange={setIsAuctionDialogOpen}
+        />
+      )}
+    </div>
   );
 }

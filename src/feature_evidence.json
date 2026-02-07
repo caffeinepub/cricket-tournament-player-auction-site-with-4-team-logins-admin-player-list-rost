@@ -2,10 +2,11 @@
   "kind": "feature_evidence_report",
   "features": [
     {
-      "featureId": "feature-publish-the-current-draft-version-15-build-as-the-live-production-deployment-without-introducing-any-additional-feature-changes-beyond-what-is-already-in-draft-version-15",
-      "featureTitle": "Publish the current Draft Version 15 build as the live/production deployment without introducing any additional feature changes beyond what is already in Draft Version 15.",
+      "featureId": "feature-in-the-admin-player-management-assigned-players-table-the-assign-player-list-add-a-new-column-labeled-sold-for-that-displays-the-player-s-sold-amount-e-g-3-20-cr-for-each-assigned-player-ensure-the-displayed-team-purse-remaining-purse-across-the-app-reflects-the-updated-backend-calculation-based-on-sold-amounts-spent",
+      "featureTitle": "In the Admin → Player Management assigned players table (the \"assign player list\"), add a new column labeled \"Sold For\" that displays the player’s sold amount (e.g., \"₹ 3.20 Cr\") for each assigned player. Ensure the displayed team purse/remaining purse across the app reflects the updated backend calculation based on sold amounts spent.",
       "files": [
-        "frontend/DEPLOYMENT.md"
+        "frontend/src/components/PlayerManagement.tsx",
+        "frontend/src/hooks/useQueries.ts"
       ],
       "components": [
         "authorization@4.0.0",
@@ -16,7 +17,7 @@
         "github-export-icp-cli@1.0.0"
       ],
       "testIds": [
-        "REQ-1"
+        "REQ-3"
       ],
       "confidence": "high"
     }

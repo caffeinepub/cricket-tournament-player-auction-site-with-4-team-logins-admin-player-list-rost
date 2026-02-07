@@ -1,21 +1,28 @@
 {
   "kind": "implementation_plan",
   "version": "1.0",
-  "title": "Publish Draft Version 15 (final deployment) — Frontend release plan",
+  "title": "Admin assigned players: show sold price and reflect remaining purse based on sold amounts",
   "requirements": [
     {
-      "id": "REQ-1",
-      "summary": "Publish the existing Draft Version 15 frontend build to live/production without introducing any feature/UI changes.",
+      "id": "REQ-3",
+      "summary": "Add a “Sold For” column in Admin → Player Management assigned players table and consume sold-amount-aware assignment data so purse/remaining purse displays stay consistent after refetch.",
       "acceptanceCriteria": [
-        "The deployed/live environment runs the exact same code and assets as Draft Version 15 (no additional commits/changes introduced solely for publishing).",
-        "The application loads successfully in the live environment and users can navigate to the existing routes: / (login), /team, and /admin.",
-        "The leading-team/bid highlight animation present in the draft remains present in the live deployment."
+        "The Assigned Players table shows a \"Sold For\" column for each assigned player.",
+        "For players assigned via auction, the UI displays the auction winning amount as the sold amount.",
+        "For manually assigned players, the UI displays the stored sold amount (defaulting to base price if that is what the backend stored).",
+        "After assigning a player (manual or auction), the team purse/remaining purse displayed in the UI updates after query invalidation/refetch and matches the backend’s remaining purse calculation.",
+        "No changes are made to files under frontend/src/hooks/useInternetIdentity.ts, frontend/src/hooks/useInternetIdentity.tsx, frontend/src/hooks/useActor.ts, frontend/src/main.tsx, or frontend/src/components/ui (compose existing components instead)."
       ],
       "file_operations": [
         {
-          "path": "frontend/DEPLOYMENT.md",
-          "operation": "create",
-          "description": "Add a release checklist documenting how to deploy the already-built Draft Version 15 frontend to production (e.g., confirm the exact source revision/build artifacts, run a smoke test that visits /, /team, and /admin, and visually confirm the leading-team highlight animation remains intact). Ensure the document emphasizes no code or asset modifications are required for publishing."
+          "path": "frontend/src/hooks/useQueries.ts",
+          "operation": "modify",
+          "description": "Add a new React Query hook (e.g., useGetPlayerTeamAssignmentsWithSoldAmount) that fetches assignment rows including team id + sold amount via the existing backend actor method, and returns a lookup structure usable by the Player Management assigned table. Update relevant mutations (manual assign, remove, assign-after-auction) to invalidate/refetch this new query key alongside existing purse/budget/summary keys so UI remaining purse updates after backend recalculation."
+        },
+        {
+          "path": "frontend/src/components/PlayerManagement.tsx",
+          "operation": "modify",
+          "description": "Update the Assigned Players table in Admin → Player Management to use the sold-amount-aware assignments hook and add a new \"Sold For\" column. Format the sold amount using the existing ₹ and Cr convention (e.g., \"₹ 3.20 Cr\"), and ensure unassigned players remain unaffected. Compose existing shadcn/ui Table components without modifying frontend/src/components/ui."
         }
       ]
     }

@@ -1,56 +1,44 @@
 {
   "kind": "spec_vs_diff_report",
   "version": "1.0",
-  "generatedAt": "2026-02-07T09:01:19.033Z",
-  "summary": "REQ-1 required publishing Draft Version 15 to production without introducing additional code/asset changes. The diff shows multiple code and documentation changes (including backend logic changes and a new deployment guide), which contradicts the constraint/AC that production should run the exact same code/assets as Draft Version 15.",
+  "generatedAt": "2026-02-07T10:06:06.374Z",
+  "summary": "Diff introduces a new backend concept of playerAssignments including soldAmount and updates frontend to fetch/display sold amounts, but the provided diff summary is truncated and does not clearly show the required write-path changes (recording sold amounts on assignment/finalization, bid validation against remaining purse) or the backend query/auth for returning sold amounts. Additionally, there appears to be an unrequested change to an immutable frontend hook file (useActor.ts).",
   "missing_requirements": [
     {
       "id": "REQ-1",
-      "requirement": "Publish the current Draft Version 15 build as the live/production deployment without introducing any additional feature changes beyond what is already in Draft Version 15.",
-      "reason": "The acceptance criteria requires no additional commits/changes introduced solely for publishing, but the diff includes new and modified files (backend code changes and new docs/state files). A pure publish/release step is not reflected; instead, source changes are present.",
+      "requirement": "Persist each assigned player’s final sold amount and use it (not base price) to compute remaining purse; record soldAmount on auction assignment and on manual assignment (default base price); reject bids exceeding remaining purse; removing a player stops counting their soldAmount.",
+      "reason": "backend/main.mo shows a new PlayerAssignment type, a playerAssignments map, and remaining purse calculation summing assignment.soldAmount, but the diff excerpt does not show the mutation logic that (a) writes soldAmount on auction finalization/assignment, (b) defaults soldAmount to basePrice for manual assignments, (c) enforces bid rejection based on remaining purse computed from sold amounts, or (d) updates/removal behavior to stop counting removed players. Without these code paths visible in the diff summary, the acceptance criteria cannot be confirmed as implemented.",
       "evidence": [
-        "backend/main.mo",
-        "frontend/DEPLOYMENT.md",
-        "frontend-file-summaries.txt",
-        "project_state.json"
+        "backend/main.mo (truncated: shows PlayerAssignment { teamId; soldAmount } and calculateRemainingPurse summing playerAssignments.soldAmount, but not the assignment/bidding mutation logic)",
+        "backend/migration.mo (maps old playerToTeam to soldAmount = 0.0, which does not match the manual-assignment default-to-base-price requirement for existing data)"
+      ]
+    },
+    {
+      "id": "REQ-2",
+      "requirement": "Expose sold amount data via an authorized backend query returning, per player, assigned team id and sold amount (absent when unassigned).",
+      "reason": "Frontend adds a hook that calls actor.getPlayerTeamAssignmentsWithSoldAmount(), but the diff summary does not include evidence of a corresponding backend query method implementation or its authorization behavior, nor does it show how unassigned players are represented (null/absent) in the backend response.",
+      "evidence": [
+        "frontend/src/hooks/useQueries.ts (calls actor.getPlayerTeamAssignmentsWithSoldAmount and expects tuples [playerId, teamId, soldAmount])",
+        "backend/main.mo (truncated: no visible definition of getPlayerTeamAssignmentsWithSoldAmount)"
       ]
     }
   ],
   "hallucinated_features": [
     {
-      "description": "Added a detailed frontend deployment guide and expanded smoke test checklist (including many UI/feature verifications unrelated to a pure publish step).",
-      "reason": "BuildRequest explicitly constrained the work to only the publish/release step with no new product features or UI/UX changes; adding new documentation/process content is a change not requested by REQ-1.",
+      "description": "Modifying an immutable frontend hook file (frontend/src/hooks/useActor.ts).",
+      "reason": "The BuildRequest explicitly forbids editing frontend/src/hooks/useActor.ts, but the diff summary’s frontend file summaries describe changes to this file (removing a deprecated initialization call). This is outside the requested scope and violates constraints.",
       "evidence": [
-        "frontend/DEPLOYMENT.md"
-      ]
-    },
-    {
-      "description": "Backend authorization and state/logic changes (e.g., use of AccessControl/MixinAuthorization, profile query authorization checks, and other backend code modifications).",
-      "reason": "Non-goals include backend schema/state migrations or resets, and the requirement was to publish the existing build without additional feature changes; modifying backend code goes beyond a pure deployment step.",
-      "evidence": [
-        "backend/main.mo"
-      ]
-    },
-    {
-      "description": "Front-end behavioral/product changes described (public access messaging on login, dashboards accessible to all users without auth gating, new admin/player/team management UI behaviors, auction button additions, new animations/config, etc.).",
-      "reason": "The request forbids new product features or UI/UX changes and asked only to publish Draft Version 15 as-is; the modified summary text indicates additional/changed UI behaviors and features.",
-      "evidence": [
-        "frontend-file-summaries.txt"
-      ]
-    },
-    {
-      "description": "Added/updated project tracking metadata for new feature requests (AR-1/AR-2) and project state versioning.",
-      "reason": "Not requested by REQ-1; constitutes additional changes unrelated to publishing the exact existing build.",
-      "evidence": [
-        "project_state.json"
+        "frontend-file-summaries.txt (entry for \"frontend/src/hooks/useActor.ts\": describes behavior changes)"
       ]
     }
   ],
-  "confidence": 0.74,
+  "confidence": 0.56,
   "changed_files": [
     "backend/main.mo",
+    "backend/migration.mo",
     "frontend-file-summaries.txt",
-    "frontend/DEPLOYMENT.md",
+    "frontend/src/components/PlayerManagement.tsx",
+    "frontend/src/hooks/useQueries.ts",
     "project_state.json"
   ]
 }

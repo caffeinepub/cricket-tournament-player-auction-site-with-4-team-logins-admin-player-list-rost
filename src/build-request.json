@@ -1,33 +1,76 @@
 {
   "kind": "build_request",
-  "title": "Publish Draft Version 15 (final deployment)",
+  "title": "Show sold price in assigned player list and deduct team purse based on amount spent",
   "priority": "normal",
   "requirements": [
     {
       "id": "REQ-1",
-      "text": "Publish the current Draft Version 15 build as the live/production deployment without introducing any additional feature changes beyond what is already in Draft Version 15.",
-      "target": "unknown",
+      "text": "Persist each assigned player’s final sold amount (auction winning bid) in the backend, and compute each team’s remaining purse by subtracting the sum of sold amounts for players assigned to that team (not the player base price). Ensure this sold amount is recorded when a player is assigned after an auction, and also when a player is manually assigned to a team (use the player’s base price as the sold amount for manual assignments unless an explicit sold amount is already recorded).",
+      "target": "backend",
       "source": {
         "messageIds": [
-          "msg-3"
+          "recent-messages"
         ],
         "quotes": [
-          "Now it’s fine just publish it"
+          "In the assign player list add a column which will show which players was sold for how much and update the teams purse accordingly on the basis of amount spent"
         ]
       },
       "acceptanceCriteria": [
-        "The deployed/live environment runs the exact same code and assets as Draft Version 15 (no additional commits/changes introduced solely for publishing).",
-        "The application loads successfully in the live environment and users can navigate to the existing routes: / (login), /team, and /admin.",
-        "The leading-team/bid highlight animation present in the draft remains present in the live deployment."
+        "When a player is assigned after an auction, the backend stores the player’s sold amount equal to the auction’s winning bid.",
+        "When a player is manually assigned to a team, the backend stores a sold amount for that assignment (defaults to the player’s base price).",
+        "Team remaining purse calculations use stored sold amounts for all assigned players on that team.",
+        "Bids are rejected when the bid amount exceeds the team’s remaining purse computed from sold amounts.",
+        "Removing a player from a team stops counting that player’s sold amount against the team’s purse."
+      ]
+    },
+    {
+      "id": "REQ-2",
+      "text": "Expose the sold amount data to the frontend for the player assignment view. Update or add a backend query that returns, for each player assignment, both the assigned team id and the sold amount for that player so the UI can render it without additional client-side inference.",
+      "target": "backend",
+      "source": {
+        "messageIds": [
+          "recent-messages"
+        ],
+        "quotes": [
+          "add a column which will show which players was sold for how much"
+        ]
+      },
+      "acceptanceCriteria": [
+        "The frontend can fetch assignment data that includes, per assigned player, a numeric sold amount (Float) and the team id.",
+        "If a player is not assigned to any team, the sold amount is absent/null/undefined for that player in the returned data.",
+        "The new/updated query is authorized consistently with existing player/team management queries (admin-only if the existing assignment listing is admin-only)."
+      ]
+    },
+    {
+      "id": "REQ-3",
+      "text": "In the Admin → Player Management assigned players table (the \"assign player list\"), add a new column labeled \"Sold For\" that displays the player’s sold amount (e.g., \"₹ 3.20 Cr\") for each assigned player. Ensure the displayed team purse/remaining purse across the app reflects the updated backend calculation based on sold amounts spent.",
+      "target": "frontend",
+      "source": {
+        "messageIds": [
+          "recent-messages"
+        ],
+        "quotes": [
+          "In the assign player list add a column which will show which players was sold for how much and update the teams purse accordingly on the basis of amount spent"
+        ]
+      },
+      "acceptanceCriteria": [
+        "The Assigned Players table shows a \"Sold For\" column for each assigned player.",
+        "For players assigned via auction, the UI displays the auction winning amount as the sold amount.",
+        "For manually assigned players, the UI displays the stored sold amount (defaulting to base price if that is what the backend stored).",
+        "After assigning a player (manual or auction), the team purse/remaining purse displayed in the UI updates after query invalidation/refetch and matches the backend’s remaining purse calculation.",
+        "No changes are made to files under frontend/src/hooks/useInternetIdentity.ts, frontend/src/hooks/useInternetIdentity.tsx, frontend/src/hooks/useActor.ts, frontend/src/main.tsx, or frontend/src/components/ui (compose existing components instead)."
       ]
     }
   ],
   "constraints": [
-    "Do not add new product features or UI/UX changes; only perform the publish/release step for the existing Draft Version 15 build."
+    "Backend must remain a single Motoko actor in backend/main.mo.",
+    "Only generate/update backend/migration.mo if adding/changing stable/persistent state requires a state upgrade path.",
+    "Do not edit frontend immutable paths: frontend/src/hooks/useInternetIdentity.ts, frontend/src/hooks/useInternetIdentity.tsx, frontend/src/hooks/useActor.ts, frontend/src/main.tsx, frontend/src/components/ui."
   ],
   "nonGoals": [
-    "Implementing additional auction UI changes beyond the already completed leading-bid/leading-team animation work.",
-    "Backend schema/state migrations or data resets."
+    "Do not redesign the auction bidding UI/flow beyond what is required to record and display sold amounts.",
+    "Do not add third-party services or external databases.",
+    "Do not change currency units or introduce multi-currency support; continue using the existing \"₹\" and \"Cr\" formatting conventions."
   ],
   "imageRequirements": {
     "required": [],

@@ -1,365 +1,239 @@
 import { useState } from 'react';
-import { useGetAllTeams, useGetAllTeamBudgets, useGetAllPlayers, useUpdateTeamPurse, useAddPlayerToTeam, useRemovePlayerFromTeam, useCreateTeam } from '../hooks/useQueries';
+import { useGetAllTeams, useCreateTeam, useUpdateTeamPurse, useAddPlayerToTeam, useRemovePlayerFromTeam } from '../hooks/useQueries';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
-import { Plus, DollarSign, Users, UserPlus, UserMinus } from 'lucide-react';
-import { toast } from 'sonner';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Badge } from '@/components/ui/badge';
+import { toast } from 'sonner';
+import { Plus, DollarSign, Users, AlertCircle } from 'lucide-react';
 import TeamBoughtPlayersSection from './TeamBoughtPlayersSection';
+import TeamOwnersManagement from './TeamOwnersManagement';
+import { Principal } from '@dfinity/principal';
 
 export default function TeamManagement() {
-  const { data: teams, isLoading: teamsLoading } = useGetAllTeams();
-  const { data: teamBudgets, isLoading: budgetsLoading } = useGetAllTeamBudgets();
-  const { data: allPlayers } = useGetAllPlayers();
-  const updateTeamPurse = useUpdateTeamPurse();
-  const addPlayerToTeam = useAddPlayerToTeam();
-  const removePlayerFromTeam = useRemovePlayerFromTeam();
-  const createTeam = useCreateTeam();
+  const { data: teams, isLoading } = useGetAllTeams();
+  const createTeamMutation = useCreateTeam();
+  const updatePurseMutation = useUpdateTeamPurse();
 
-  const [isCreateTeamOpen, setIsCreateTeamOpen] = useState(false);
+  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [newTeamName, setNewTeamName] = useState('');
   const [newTeamPurse, setNewTeamPurse] = useState('');
 
-  const [isPurseDialogOpen, setIsPurseDialogOpen] = useState(false);
-  const [selectedTeamForPurse, setSelectedTeamForPurse] = useState<bigint | null>(null);
-  const [newPurseAmount, setNewPurseAmount] = useState('');
+  const [selectedTeamForOwners, setSelectedTeamForOwners] = useState<bigint | null>(null);
 
-  const [isAssignDialogOpen, setIsAssignDialogOpen] = useState(false);
-  const [selectedTeamForAssign, setSelectedTeamForAssign] = useState<string>('');
-  const [selectedPlayerToAssign, setSelectedPlayerToAssign] = useState<string>('');
-
-  const [isRemoveDialogOpen, setIsRemoveDialogOpen] = useState(false);
-  const [selectedTeamForRemove, setSelectedTeamForRemove] = useState<string>('');
-  const [selectedPlayerToRemove, setSelectedPlayerToRemove] = useState<string>('');
-
-  const handleCreateTeam = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleCreateTeam = async () => {
     if (!newTeamName.trim() || !newTeamPurse) {
       toast.error('Please fill in all fields');
       return;
     }
 
+    const purseValue = parseFloat(newTeamPurse);
+    if (isNaN(purseValue) || purseValue <= 0) {
+      toast.error('Please enter a valid purse amount');
+      return;
+    }
+
     try {
-      await createTeam.mutateAsync({
-        name: newTeamName.trim(),
-        totalPurse: parseFloat(newTeamPurse),
+      await createTeamMutation.mutateAsync({
+        name: newTeamName,
+        totalPurse: purseValue,
+        ownerPrincipals: [],
       });
       toast.success('Team created successfully');
-      setIsCreateTeamOpen(false);
       setNewTeamName('');
       setNewTeamPurse('');
+      setIsCreateDialogOpen(false);
     } catch (error: any) {
       toast.error(error.message || 'Failed to create team');
     }
   };
 
-  const handleUpdatePurse = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!selectedTeamForPurse || !newPurseAmount) {
-      toast.error('Please fill in all fields');
+  const [editingPurse, setEditingPurse] = useState<{ teamId: bigint; value: string } | null>(null);
+
+  const handleUpdatePurse = async (teamId: bigint) => {
+    if (!editingPurse || editingPurse.teamId !== teamId) return;
+
+    const newPurse = parseFloat(editingPurse.value);
+    if (isNaN(newPurse) || newPurse <= 0) {
+      toast.error('Please enter a valid purse amount');
       return;
     }
 
     try {
-      await updateTeamPurse.mutateAsync({
-        teamId: selectedTeamForPurse,
-        newPurse: parseFloat(newPurseAmount),
-      });
-      toast.success('Team purse updated successfully');
-      setIsPurseDialogOpen(false);
-      setSelectedTeamForPurse(null);
-      setNewPurseAmount('');
+      await updatePurseMutation.mutateAsync({ teamId, newPurse });
+      toast.success('Purse updated successfully');
+      setEditingPurse(null);
     } catch (error: any) {
       toast.error(error.message || 'Failed to update purse');
     }
   };
 
-  const handleAssignPlayer = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!selectedTeamForAssign || !selectedPlayerToAssign) {
-      toast.error('Please select both team and player');
-      return;
-    }
-
-    try {
-      await addPlayerToTeam.mutateAsync({
-        playerId: BigInt(selectedPlayerToAssign),
-        teamId: BigInt(selectedTeamForAssign),
-      });
-      toast.success('Player assigned to team successfully');
-      setIsAssignDialogOpen(false);
-      setSelectedTeamForAssign('');
-      setSelectedPlayerToAssign('');
-    } catch (error: any) {
-      toast.error(error.message || 'Failed to assign player');
-    }
-  };
-
-  const handleRemovePlayer = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!selectedTeamForRemove || !selectedPlayerToRemove) {
-      toast.error('Please select both team and player');
-      return;
-    }
-
-    try {
-      await removePlayerFromTeam.mutateAsync({
-        playerId: BigInt(selectedPlayerToRemove),
-        teamId: BigInt(selectedTeamForRemove),
-      });
-      toast.success('Player removed from team successfully');
-      setIsRemoveDialogOpen(false);
-      setSelectedTeamForRemove('');
-      setSelectedPlayerToRemove('');
-    } catch (error: any) {
-      toast.error(error.message || 'Failed to remove player');
-    }
-  };
-
-  const openPurseDialog = (teamId: bigint, currentPurse: number) => {
-    setSelectedTeamForPurse(teamId);
-    setNewPurseAmount(currentPurse.toString());
-    setIsPurseDialogOpen(true);
-  };
+  if (isLoading) {
+    return (
+      <div className="space-y-4">
+        <Skeleton className="h-12 w-full" />
+        <Skeleton className="h-64 w-full" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
-      <Card className="border-2 shadow-lg">
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle className="text-2xl">Team Management</CardTitle>
-              <CardDescription>Manage teams, budgets, and player assignments</CardDescription>
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-2xl font-bold">Team Management</h2>
+          <p className="text-muted-foreground">Create and manage teams</p>
+        </div>
+        <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+          <DialogTrigger asChild>
+            <Button className="gap-2">
+              <Plus className="w-4 h-4" />
+              Create Team
+            </Button>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Create New Team</DialogTitle>
+              <DialogDescription>Add a new team to the auction</DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Label htmlFor="team-name">Team Name</Label>
+                <Input
+                  id="team-name"
+                  placeholder="Enter team name"
+                  value={newTeamName}
+                  onChange={(e) => setNewTeamName(e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="team-purse">Total Purse (Crore)</Label>
+                <Input
+                  id="team-purse"
+                  type="number"
+                  step="0.1"
+                  placeholder="e.g., 100"
+                  value={newTeamPurse}
+                  onChange={(e) => setNewTeamPurse(e.target.value)}
+                />
+              </div>
             </div>
-            <Dialog open={isCreateTeamOpen} onOpenChange={setIsCreateTeamOpen}>
-              <DialogTrigger asChild>
-                <Button className="bg-amber-600 hover:bg-amber-700">
-                  <Plus className="w-4 h-4 mr-2" />
-                  Create Team
-                </Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>Create New Team</DialogTitle>
-                  <DialogDescription>Add a new team to the auction</DialogDescription>
-                </DialogHeader>
-                <form onSubmit={handleCreateTeam} className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="team-name">Team Name</Label>
-                    <Input
-                      id="team-name"
-                      placeholder="Enter team name"
-                      value={newTeamName}
-                      onChange={(e) => setNewTeamName(e.target.value)}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="team-purse">Total Purse (Crore)</Label>
-                    <Input
-                      id="team-purse"
-                      type="number"
-                      step="0.01"
-                      placeholder="Enter total purse in crore"
-                      value={newTeamPurse}
-                      onChange={(e) => setNewTeamPurse(e.target.value)}
-                    />
-                  </div>
-                  <Button type="submit" className="w-full" disabled={createTeam.isPending}>
-                    {createTeam.isPending ? 'Creating...' : 'Create Team'}
-                  </Button>
-                </form>
-              </DialogContent>
-            </Dialog>
-          </div>
-        </CardHeader>
-        <CardContent>
-          {teamsLoading || budgetsLoading ? (
-            <div className="space-y-4">
-              {[1, 2, 3, 4].map(i => <Skeleton key={i} className="h-32 w-full" />)}
-            </div>
-          ) : teamBudgets && teamBudgets.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {teamBudgets.map((budget) => (
-                <Card key={Number(budget.team.id)} className="border-2">
-                  <CardHeader className="pb-3">
-                    <CardTitle className="text-lg">{budget.team.name}</CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-muted-foreground">Total Purse:</span>
-                      <Badge variant="secondary" className="font-semibold">
-                        ₹{budget.team.totalPurse.toLocaleString()} Cr
-                      </Badge>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setIsCreateDialogOpen(false)}>
+                Cancel
+              </Button>
+              <Button onClick={handleCreateTeam} disabled={createTeamMutation.isPending}>
+                {createTeamMutation.isPending ? 'Creating...' : 'Create Team'}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      </div>
+
+      {!teams || teams.length === 0 ? (
+        <Alert>
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>
+            No teams created yet. Create your first team to get started.
+          </AlertDescription>
+        </Alert>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {teams.map((team) => (
+            <div key={team.id.toString()} className="space-y-4">
+              <Card>
+                <CardHeader>
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <CardTitle className="text-xl">{team.name}</CardTitle>
+                      <CardDescription>Team ID: {team.id.toString()}</CardDescription>
                     </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-muted-foreground">Remaining:</span>
-                      <Badge variant="default" className="font-semibold bg-emerald-600">
-                        ₹{budget.remainingPurse.toLocaleString()} Cr
-                      </Badge>
+                    <Badge variant="secondary" className="gap-1">
+                      <Users className="w-3 h-3" />
+                      {team.ownerPrincipals.length}
+                    </Badge>
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="space-y-2">
+                    <Label>Total Purse</Label>
+                    <div className="flex gap-2">
+                      {editingPurse?.teamId === team.id ? (
+                        <>
+                          <Input
+                            type="number"
+                            step="0.1"
+                            value={editingPurse.value}
+                            onChange={(e) =>
+                              setEditingPurse({ teamId: team.id, value: e.target.value })
+                            }
+                            className="flex-1"
+                          />
+                          <Button
+                            size="sm"
+                            onClick={() => handleUpdatePurse(team.id)}
+                            disabled={updatePurseMutation.isPending}
+                          >
+                            Save
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => setEditingPurse(null)}
+                          >
+                            Cancel
+                          </Button>
+                        </>
+                      ) : (
+                        <>
+                          <div className="flex-1 flex items-center gap-2 px-3 py-2 border rounded-md bg-muted/30">
+                            <DollarSign className="w-4 h-4 text-muted-foreground" />
+                            <span className="font-semibold">₹ {team.totalPurse.toFixed(2)} Cr</span>
+                          </div>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() =>
+                              setEditingPurse({ teamId: team.id, value: team.totalPurse.toString() })
+                            }
+                          >
+                            Edit
+                          </Button>
+                        </>
+                      )}
                     </div>
+                  </div>
+
+                  <div>
                     <Button
                       variant="outline"
                       size="sm"
+                      onClick={() =>
+                        setSelectedTeamForOwners(
+                          selectedTeamForOwners === team.id ? null : team.id
+                        )
+                      }
                       className="w-full"
-                      onClick={() => openPurseDialog(budget.team.id, budget.team.totalPurse)}
                     >
-                      <DollarSign className="w-4 h-4 mr-2" />
-                      Update Purse
+                      {selectedTeamForOwners === team.id ? 'Hide' : 'Manage'} Owners
                     </Button>
-                    
-                    <TeamBoughtPlayersSection teamId={budget.team.id} />
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          ) : (
-            <div className="text-center py-12 text-muted-foreground">
-              No teams created yet. Click "Create Team" to get started.
-            </div>
-          )}
-        </CardContent>
-      </Card>
+                  </div>
+                </CardContent>
+              </Card>
 
-      <Card className="border-2 shadow-lg">
-        <CardHeader>
-          <CardTitle className="text-xl">Player Assignment</CardTitle>
-          <CardDescription>Assign or remove players from teams</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <Dialog open={isAssignDialogOpen} onOpenChange={setIsAssignDialogOpen}>
-              <DialogTrigger asChild>
-                <Button variant="outline" className="h-24 flex-col gap-2">
-                  <UserPlus className="w-8 h-8 text-emerald-600" />
-                  <span>Assign Player to Team</span>
-                </Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>Assign Player to Team</DialogTitle>
-                  <DialogDescription>Select a team and player to assign</DialogDescription>
-                </DialogHeader>
-                <form onSubmit={handleAssignPlayer} className="space-y-4">
-                  <div className="space-y-2">
-                    <Label>Select Team</Label>
-                    <Select value={selectedTeamForAssign} onValueChange={setSelectedTeamForAssign}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Choose a team" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {teams?.map((team) => (
-                          <SelectItem key={Number(team.id)} value={team.id.toString()}>
-                            {team.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Select Player</Label>
-                    <Select value={selectedPlayerToAssign} onValueChange={setSelectedPlayerToAssign}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Choose a player" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {allPlayers?.map((player) => (
-                          <SelectItem key={Number(player.id)} value={player.id.toString()}>
-                            {player.name} (₹{player.basePrice.toLocaleString()} Cr)
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <Button type="submit" className="w-full" disabled={addPlayerToTeam.isPending}>
-                    {addPlayerToTeam.isPending ? 'Assigning...' : 'Assign Player'}
-                  </Button>
-                </form>
-              </DialogContent>
-            </Dialog>
+              {selectedTeamForOwners === team.id && (
+                <TeamOwnersManagement team={team} />
+              )}
 
-            <Dialog open={isRemoveDialogOpen} onOpenChange={setIsRemoveDialogOpen}>
-              <DialogTrigger asChild>
-                <Button variant="outline" className="h-24 flex-col gap-2">
-                  <UserMinus className="w-8 h-8 text-destructive" />
-                  <span>Remove Player from Team</span>
-                </Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>Remove Player from Team</DialogTitle>
-                  <DialogDescription>Select a team and player to remove</DialogDescription>
-                </DialogHeader>
-                <form onSubmit={handleRemovePlayer} className="space-y-4">
-                  <div className="space-y-2">
-                    <Label>Select Team</Label>
-                    <Select value={selectedTeamForRemove} onValueChange={setSelectedTeamForRemove}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Choose a team" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {teams?.map((team) => (
-                          <SelectItem key={Number(team.id)} value={team.id.toString()}>
-                            {team.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Select Player</Label>
-                    <Select value={selectedPlayerToRemove} onValueChange={setSelectedPlayerToRemove}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Choose a player" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {allPlayers?.map((player) => (
-                          <SelectItem key={Number(player.id)} value={player.id.toString()}>
-                            {player.name} (₹{player.basePrice.toLocaleString()} Cr)
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <Button type="submit" className="w-full" disabled={removePlayerFromTeam.isPending}>
-                    {removePlayerFromTeam.isPending ? 'Removing...' : 'Remove Player'}
-                  </Button>
-                </form>
-              </DialogContent>
-            </Dialog>
-          </div>
-        </CardContent>
-      </Card>
-
-      <Dialog open={isPurseDialogOpen} onOpenChange={setIsPurseDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Update Team Purse</DialogTitle>
-            <DialogDescription>Set a new total purse amount for the team</DialogDescription>
-          </DialogHeader>
-          <form onSubmit={handleUpdatePurse} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="purse-amount">New Total Purse (Crore)</Label>
-              <Input
-                id="purse-amount"
-                type="number"
-                step="0.01"
-                placeholder="Enter new purse amount in crore"
-                value={newPurseAmount}
-                onChange={(e) => setNewPurseAmount(e.target.value)}
-              />
+              <TeamBoughtPlayersSection teamId={team.id} />
             </div>
-            <Button type="submit" className="w-full" disabled={updateTeamPurse.isPending}>
-              {updateTeamPurse.isPending ? 'Updating...' : 'Update Purse'}
-            </Button>
-          </form>
-        </DialogContent>
-      </Dialog>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

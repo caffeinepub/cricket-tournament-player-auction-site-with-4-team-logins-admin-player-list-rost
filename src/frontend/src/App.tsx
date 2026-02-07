@@ -1,4 +1,5 @@
 import { RouterProvider, createRouter, createRoute, createRootRoute, Outlet } from '@tanstack/react-router';
+import { useEffect } from 'react';
 import { useInternetIdentity } from './hooks/useInternetIdentity';
 import { useGetCallerUserProfile } from './hooks/useQueries';
 import LoginPage from './pages/LoginPage';
@@ -18,6 +19,11 @@ function RootLayout() {
   
   const isAuthenticated = !!identity;
   const showProfileSetup = isAuthenticated && !profileLoading && isFetched && userProfile === null;
+
+  // Set document title
+  useEffect(() => {
+    document.title = 'Hostel Premier League Team Auction & Management';
+  }, []);
 
   return (
     <>

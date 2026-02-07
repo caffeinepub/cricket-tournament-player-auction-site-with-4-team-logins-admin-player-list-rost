@@ -1,18 +1,16 @@
-import Array "mo:core/Array";
 import Float "mo:core/Float";
 import Iter "mo:core/Iter";
 import Map "mo:core/Map";
-
-
 import Nat "mo:core/Nat";
 import Order "mo:core/Order";
 import Principal "mo:core/Principal";
 import Runtime "mo:core/Runtime";
 import Text "mo:core/Text";
+import Migration "migration";
 import AccessControl "authorization/access-control";
 import MixinAuthorization "authorization/MixinAuthorization";
 
-
+(with migration = Migration.run)
 actor {
   let accessControlState = AccessControl.initState();
   include MixinAuthorization(accessControlState);
@@ -27,6 +25,13 @@ actor {
     id : Nat;
     name : Text;
     totalPurse : Float;
+  };
+
+  public type TeamExtended = {
+    id : Nat;
+    name : Text;
+    totalPurse : Float;
+    ownerPrincipals : [Principal];
   };
 
   public type TeamBudget = {
@@ -105,13 +110,34 @@ actor {
     fixedIncrement : Bool;
   };
 
+  public type PlayerAssignment = {
+    teamId : Nat;
+    soldAmount : Float;
+  };
+
+  public type TeamSummary = {
+    team : TeamExtended;
+    remainingPurse : Float;
+    roster : [(Player, Float)];
+  };
+
+  public type AbstractMatch = {
+    homeTeamId : Nat;
+    awayTeamId : Nat;
+    homeTeamName : Text;
+    awayTeamName : Text;
+    date : Text;
+    location : Text;
+  };
+
   // Persistent storage
   let players = Map.empty<Nat, Player>();
-  let teams = Map.empty<Nat, Team>();
+  let teams = Map.empty<Nat, TeamExtended>();
   let userProfiles = Map.empty<Principal, UserProfile>();
   let playerToTeam = Map.empty<Nat, Nat>();
   let matches = Map.empty<Nat, Match>();
   let auctions = Map.empty<Nat, AuctionState>();
+  let playerAssignments = Map.empty<Nat, PlayerAssignment>();
 
   var nextPlayerId = 1;
   var nextTeamId = 1;
@@ -134,21 +160,68 @@ actor {
     switch (teams.get(teamId)) {
       case (null) { 0.0 };
       case (?team) {
-        let totalSpent = players.values().toArray().filter(
-          func(player) {
-            let assignedTeam = playerToTeam.get(player.id);
-            switch (assignedTeam) {
-              case (?tId) { tId == teamId };
-              case (null) { false };
-            };
+        let totalSpent = playerAssignments.values().toArray().filter(
+          func(assignment) {
+            assignment.teamId == teamId;
           }
         ).foldLeft(
           0.0,
-          func(acc, player) {
-            acc + player.basePrice;
+          func(acc, assignment) {
+            acc + assignment.soldAmount;
           },
         );
         team.totalPurse - totalSpent;
+      };
+    };
+  };
+
+  func arrayContains<T>(array : [T], value : T, equal : (T, T) -> Bool) : Bool {
+    for (item in array.values()) {
+      if (equal(item, value)) { return true };
+    };
+    false;
+  };
+
+  func isTeamOwner(caller : Principal, teamId : Nat) : Bool {
+    switch (teams.get(teamId)) {
+      case (null) { false };
+      case (?team) {
+        arrayContains<Principal>(team.ownerPrincipals, caller, func(x, y) { x == y });
+      };
+    };
+  };
+
+  func filterTeamOwners(caller : Principal, team : TeamExtended) : TeamExtended {
+    if (AccessControl.isAdmin(accessControlState, caller) or arrayContains<Principal>(team.ownerPrincipals, caller, func(x, y) { x == y })) {
+      team;
+    } else {
+      {
+        team with
+        ownerPrincipals = [];
+      };
+    };
+  };
+
+  // Self-registration: any authenticated (non-anonymous) principal can register as a user
+  public shared ({ caller }) func registerAsUser() : async () {
+    if (caller.isAnonymous()) {
+      Runtime.trap("Anonymous principals cannot register as users");
+    };
+
+    // Check if already has user or admin role
+    let currentRole = AccessControl.getUserRole(accessControlState, caller);
+    switch (currentRole) {
+      case (#admin) {
+        // Already admin, no need to change
+        return;
+      };
+      case (#user) {
+        // Already user, no need to change
+        return;
+      };
+      case (#guest) {
+        // Promote guest to user
+        AccessControl.assignRole(accessControlState, caller, caller, #user);
       };
     };
   };
@@ -209,11 +282,11 @@ actor {
     if (not players.containsKey(playerId)) {
       Runtime.trap("Player does not exist");
     };
-    playerToTeam.remove(playerId);
+    playerAssignments.remove(playerId);
     players.remove(playerId);
   };
 
-  public shared ({ caller }) func createTeam(name : Text, totalPurse : Float) : async () {
+  public shared ({ caller }) func createTeam(name : Text, totalPurse : Float, ownerPrincipals : [Principal]) : async () {
     if (not (AccessControl.hasPermission(accessControlState, caller, #admin))) {
       Runtime.trap("Unauthorized: Only admins can create teams");
     };
@@ -221,9 +294,27 @@ actor {
       id = nextTeamId;
       name;
       totalPurse;
+      ownerPrincipals;
     };
     teams.add(nextTeamId, team);
     nextTeamId += 1;
+  };
+
+  public shared ({ caller }) func updateTeamOwners(teamId : Nat, newOwnerPrincipals : [Principal]) : async () {
+    if (not (AccessControl.hasPermission(accessControlState, caller, #admin))) {
+      Runtime.trap("Unauthorized: Only admins can update team owners");
+    };
+    let team = switch (teams.get(teamId)) {
+      case (null) { Runtime.trap("Team does not exist") };
+      case (?t) { t };
+    };
+    let updatedTeam = {
+      id = team.id;
+      name = team.name;
+      totalPurse = team.totalPurse;
+      ownerPrincipals = newOwnerPrincipals;
+    };
+    teams.add(teamId, updatedTeam);
   };
 
   public shared ({ caller }) func addPlayerToTeam(playerId : Nat, teamId : Nat) : async () {
@@ -236,7 +327,10 @@ actor {
     if (not teams.containsKey(teamId)) {
       Runtime.trap("Team does not exist");
     };
-    let currentTeam = playerToTeam.get(playerId);
+    let currentTeam = switch (playerAssignments.get(playerId)) {
+      case (null) { null };
+      case (?assignment) { ?assignment.teamId };
+    };
     switch (currentTeam) {
       case (?existingTeam) {
         if (existingTeam == teamId) {
@@ -245,7 +339,14 @@ actor {
       };
       case (null) {};
     };
-    playerToTeam.add(playerId, teamId);
+
+    // Use base price as sold amount for manual assignment
+    switch (players.get(playerId)) {
+      case (null) { Runtime.trap("Player does not exist") };
+      case (?player) {
+        playerAssignments.add(playerId, { teamId; soldAmount = player.basePrice });
+      };
+    };
   };
 
   public shared ({ caller }) func removePlayerFromTeam(playerId : Nat, teamId : Nat) : async () {
@@ -258,11 +359,14 @@ actor {
     if (not teams.containsKey(teamId)) {
       Runtime.trap("Team does not exist");
     };
-    let currentTeam = playerToTeam.get(playerId);
+    let currentTeam = switch (playerAssignments.get(playerId)) {
+      case (null) { null };
+      case (?assignment) { ?assignment.teamId };
+    };
     switch (currentTeam) {
       case (?existingTeam) {
         if (existingTeam == teamId) {
-          playerToTeam.remove(playerId);
+          playerAssignments.remove(playerId);
         } else {
           Runtime.trap("Player is not in the specified team");
         };
@@ -285,6 +389,7 @@ actor {
       id = team.id;
       name = team.name;
       totalPurse = newPurse;
+      ownerPrincipals = team.ownerPrincipals;
     };
     teams.add(teamId, updatedTeam);
   };
@@ -335,9 +440,7 @@ actor {
   };
 
   public query ({ caller }) func getAllMatches() : async [Match] {
-    matches.values().toArray().sort(
-      compareMatch
-    );
+    matches.values().toArray();
   };
 
   public query ({ caller }) func getMatchById(matchId : Nat) : async ?Match {
@@ -450,27 +553,14 @@ actor {
   };
 
   public shared ({ caller }) func placeBid(playerId : Nat, teamId : Nat, bidAmount : Float) : async () {
+    // Only authenticated users can place bids
     if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
       Runtime.trap("Unauthorized: Only users can place bids");
     };
 
-    // Verify the caller is associated with the team they're bidding for
-    switch (userProfiles.get(caller)) {
-      case (null) {
-        Runtime.trap("User profile not found. Please create a profile first");
-      };
-      case (?profile) {
-        switch (profile.teamId) {
-          case (null) {
-            Runtime.trap("User is not associated with any team");
-          };
-          case (?userTeamId) {
-            if (userTeamId != teamId) {
-              Runtime.trap("User can only place bids for their own team");
-            };
-          };
-        };
-      };
+    // Team ownership check: only team owners or admins can bid for a team
+    if (not (AccessControl.isAdmin(accessControlState, caller) or isTeamOwner(caller, teamId))) {
+      Runtime.trap("Unauthorized: Only team owners or admins can place bids for this team");
     };
 
     // Validate player and team existence
@@ -507,7 +597,7 @@ actor {
 
         // Check the fixed increment scenario
         if (auctionState.fixedIncrement and not Float.equal(bidAmount, auctionState.highestBid + 0.2, 0.000_01)) {
-          Runtime.trap("Bid must be exactly 0.2 Cr higher than current bid.");
+          Runtime.trap("Bid must be exactly 0.2 Cr higher than current bid. ");
         };
 
         // Update the auction state
@@ -584,7 +674,7 @@ actor {
         switch (auctionState.highestBidTeamId) {
           case (null) {};
           case (?teamId) {
-            playerToTeam.add(playerId, teamId);
+            playerAssignments.add(playerId, { teamId; soldAmount = auctionState.highestBid });
           };
         };
       };
@@ -599,8 +689,12 @@ actor {
     players.values().toArray();
   };
 
-  public query ({ caller }) func getAllTeams() : async [Team] {
-    teams.values().toArray();
+  public query ({ caller }) func getAllTeams() : async [TeamExtended] {
+    teams.values().toArray().map(
+      func(team) {
+        filterTeamOwners(caller, team);
+      }
+    );
   };
 
   public query ({ caller }) func getAllTeamBudgets() : async [TeamBudget] {
@@ -609,23 +703,24 @@ actor {
         let remainingPurse = calculateRemainingPurse(teamId);
         let team = switch (teams.get(teamId)) {
           case (null) { Runtime.trap("Team does not exist") };
-          case (?t) { t };
+          case (?t) { { id = t.id; name = t.name; totalPurse = t.totalPurse } };
         };
         {
           team;
           remainingPurse;
         };
       }
-    ).sort(
-      compareTeamBudget
     );
   };
 
-  public query ({ caller }) func getPlayerTeamAssignments() : async [(Nat, ?Nat)] {
+  public query ({ caller }) func getPlayerTeamAssignmentsWithSoldAmount() : async [(Nat, ?Nat, Float)] {
     players.keys().toArray().map(
       func(playerId) {
-        let teamId = playerToTeam.get(playerId);
-        (playerId, teamId);
+        let teamId = playerAssignments.get(playerId);
+        switch (teamId) {
+          case (null) { (playerId, null, 0.0) };
+          case (?assignment) { (playerId, ?assignment.teamId, assignment.soldAmount) };
+        };
       }
     );
   };
@@ -636,9 +731,9 @@ actor {
       case (?_) {
         players.values().toArray().filter(
           func(player) {
-            let assignedTeam = playerToTeam.get(player.id);
-            switch (assignedTeam) {
-              case (?tId) { tId == teamId };
+            let assignment = playerAssignments.get(player.id);
+            switch (assignment) {
+              case (?a) { a.teamId == teamId };
               case (null) { false };
             };
           }
@@ -646,5 +741,164 @@ actor {
       };
     };
   };
-};
 
+  public query ({ caller }) func getTeamSummary(teamId : Nat) : async ?TeamSummary {
+    switch (teams.get(teamId)) {
+      case (null) { null };
+      case (?team) {
+        let filteredTeam = filterTeamOwners(caller, team);
+        let playersWithPrices = players.values().toArray().filter(
+          func(player) {
+            switch (playerAssignments.get(player.id)) {
+              case (?a) { a.teamId == teamId };
+              case (null) { false };
+            };
+          }
+        ).map(
+          func(player) {
+            let finalPrice = switch (playerAssignments.get(player.id)) {
+              case (null) { 0.0 };
+              case (?assignment) { assignment.soldAmount };
+            };
+            (player, finalPrice);
+          }
+        );
+
+        ?{
+          team = filteredTeam;
+          remainingPurse = calculateRemainingPurse(teamId);
+          roster = playersWithPrices;
+        };
+      };
+    };
+  };
+
+  public query ({ caller }) func getAllTeamSummaries() : async [TeamSummary] {
+    teams.keys().toArray().filter(
+      func(teamId) {
+        teams.containsKey(teamId);
+      }
+    ).map(
+      func(teamId) {
+        let team = switch (teams.get(teamId)) {
+          case (null) { Runtime.trap("Team does not exist") };
+          case (?t) { t };
+        };
+        let filteredTeam = filterTeamOwners(caller, team);
+        let playersWithPrices = players.values().toArray().filter(
+          func(player) {
+            switch (playerAssignments.get(player.id)) {
+              case (?a) { a.teamId == teamId };
+              case (null) { false };
+            };
+          }
+        ).map(
+          func(player) {
+            let finalPrice = switch (playerAssignments.get(player.id)) {
+              case (null) { 0.0 };
+              case (?assignment) { assignment.soldAmount };
+            };
+            (player, finalPrice);
+          }
+        );
+
+        ?{
+          team = filteredTeam;
+          remainingPurse = calculateRemainingPurse(teamId);
+          roster = playersWithPrices;
+        };
+      }
+    ).filter(
+      func(summary) { summary != null }
+    ).map(
+      func(summary) { switch (summary) { case (?s) { s }; case (null) { Runtime.trap("Should never happen") } } }
+    );
+  };
+
+  public query ({ caller }) func getExportData() : async ([TeamSummary], [TeamExtended], [Player]) {
+    let teamSummaries = getAllTeamSummariesInternal(caller);
+    let _teams = teams.values().toArray().map(
+      func(team) {
+        filterTeamOwners(caller, team);
+      }
+    );
+    let _players = players.values().toArray();
+    (teamSummaries, _teams, _players);
+  };
+
+  func getAllTeamSummariesInternal(caller : Principal) : [TeamSummary] {
+    teams.keys().toArray().filter(
+      func(teamId) {
+        teams.containsKey(teamId);
+      }
+    ).map(
+      func(teamId) {
+        let team = switch (teams.get(teamId)) {
+          case (null) { Runtime.trap("Team does not exist") };
+          case (?t) { t };
+        };
+        let filteredTeam = filterTeamOwners(caller, team);
+        let playersWithPrices = players.values().toArray().filter(
+          func(player) {
+            switch (playerAssignments.get(player.id)) {
+              case (?a) { a.teamId == teamId };
+              case (null) { false };
+            };
+          }
+        ).map(
+          func(player) {
+            let finalPrice = switch (playerAssignments.get(player.id)) {
+              case (null) { 0.0 };
+              case (?assignment) { assignment.soldAmount };
+            };
+            (player, finalPrice);
+          }
+        );
+
+        {
+          team = filteredTeam;
+          remainingPurse = calculateRemainingPurse(teamId);
+          roster = playersWithPrices;
+        };
+      }
+    );
+  };
+
+  public shared ({ caller }) func generateFixtures(tournamentName : Text, startDate : Text) : async () {
+    if (not (AccessControl.hasPermission(accessControlState, caller, #admin))) {
+      Runtime.trap("Unauthorized: Only admins can generate fixtures");
+    };
+
+    let teamList = teams.values().toArray();
+
+    for (i in Nat.range(0, teamList.size())) {
+      for (j in Nat.range(i + 1, teamList.size())) {
+        if (j >= 0 and j < teamList.size()) {
+          // Ensure valid index for j
+          let homeTeam = teamList[i];
+          let awayTeam = teamList[j];
+          let match = {
+            homeTeamId = homeTeam.id;
+            awayTeamId = awayTeam.id;
+            homeTeamName = homeTeam.name;
+            awayTeamName = awayTeam.name;
+            homeTeamRuns = 0;
+            homeTeamWickets = 0;
+            awayTeamRuns = 0;
+            awayTeamWickets = 0;
+            date = startDate;
+            location = tournamentName;
+            batsmen = [];
+            bowlers = [];
+            fielders = [];
+            matchWinner = "";
+          };
+          let matchId = nextMatchId;
+          matches.add(matchId, match);
+          nextMatchId += 1;
+        };
+      };
+    };
+
+  };
+};
