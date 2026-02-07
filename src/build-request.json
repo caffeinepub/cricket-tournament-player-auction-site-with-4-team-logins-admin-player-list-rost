@@ -1,89 +1,52 @@
 {
   "kind": "build_request",
-  "title": "Fix deployed site not loading (add runtime diagnostics and harden SPA boot)",
+  "title": "Fix SPA routing so internal pages load and Not Found does not appear unexpectedly",
   "priority": "high",
   "requirements": [
     {
       "id": "REQ-1",
-      "text": "Add a global, user-visible crash fallback so that if the React app fails to mount or throws during initial render, the page shows a clear English error state instead of a blank/failed load. This must include an Error Boundary around the app tree and a minimal fallback UI with: (1) headline indicating the app failed to load, (2) a short explanation prompting the user to refresh, and (3) a section that can reveal a technical error message/stack for debugging.",
+      "text": "Fix client-side routing so that internal pages load correctly in production, including when users open internal URLs directly (deep links) and when navigating within the app.",
       "target": "frontend",
       "source": {
         "messageIds": [
-          "msg-4"
+          "recent-messages-4"
         ],
         "quotes": [
-          "Still site isn’t loading properly"
+          "Remove the page not found page it is showing and still the internal pages are not getting load please fix it"
         ]
       },
       "acceptanceCriteria": [
-        "If a top-level render error is intentionally triggered, users see a styled fallback screen (not a blank page).",
-        "Fallback UI text is in English and includes a refresh instruction.",
-        "The fallback UI can display (or toggle) the underlying error message for troubleshooting."
+        "Navigating via in-app buttons/links loads these routes reliably: / (Login), /team, /admin, /s/<shareId>, /debug.",
+        "Opening a deep link directly in the browser address bar loads the intended page instead of Not Found (e.g., opening /team results in the Team Dashboard, opening /s/<shareId> results in the Public Scorecard).",
+        "Refreshing the browser on an internal route does not land on Not Found for valid routes."
       ]
     },
     {
       "id": "REQ-2",
-      "text": "Add initial-load diagnostics to help identify why the deployed site fails to load, without requiring developer tools. Implement a lightweight in-app diagnostic view reachable via hash routing (e.g., `#/debug`) that displays: current URL, detected canister host/origin, build/version identifier (e.g., from Vite env or package metadata), whether the app can create the backend actor, and the status/error of a simple backend query (e.g., the same call used by the login/root flow).",
+      "text": "Remove/disable the current full-screen 'Page Not Found' experience from appearing for users during normal navigation by replacing it with a safe redirect behavior for unknown routes (e.g., redirect to the home/login route) while still allowing diagnostics access via /debug.",
       "target": "frontend",
       "source": {
         "messageIds": [
-          "msg-4"
+          "recent-messages-4"
         ],
         "quotes": [
-          "Still site isn’t loading properly"
+          "Remove the page not found page it is showing"
         ]
       },
       "acceptanceCriteria": [
-        "Navigating to `#/debug` renders a diagnostic page.",
-        "The diagnostic page shows the current URL and origin information.",
-        "The diagnostic page shows whether the backend actor is available and displays success/error results of at least one backend call.",
-        "All user-facing text is in English."
-      ]
-    },
-    {
-      "id": "REQ-3",
-      "text": "Harden frontend bootstrapping so that common deployment/runtime issues surface clearly: ensure unhandled promise rejections and global errors are captured and presented in the crash fallback (REQ-1) and logged to console with enough context to debug (route, origin, and error).",
-      "target": "frontend",
-      "source": {
-        "messageIds": [
-          "msg-4"
-        ],
-        "quotes": [
-          "Still site isn’t loading properly"
-        ]
-      },
-      "acceptanceCriteria": [
-        "Unhandled exceptions and unhandled promise rejections during startup are captured.",
-        "When a global error occurs, the app shows the fallback UI from REQ-1 (when feasible) and logs a structured error with URL/origin context to the console."
-      ]
-    },
-    {
-      "id": "REQ-4",
-      "text": "Update `frontend/DEPLOYMENT.md` to include a short, concrete 'Blank screen / site not loading' checklist that references the new `#/debug` page and describes how to verify `index.html` and bundled assets load (200 responses) on the deployed canister.",
-      "target": "frontend",
-      "source": {
-        "messageIds": [
-          "msg-4"
-        ],
-        "quotes": [
-          "Still site isn’t loading properly"
-        ]
-      },
-      "acceptanceCriteria": [
-        "`frontend/DEPLOYMENT.md` includes a dedicated section for 'site not loading/blank screen'.",
-        "The section includes steps to open `#/debug` and interpret key signals (actor available, backend call success/error)."
+        "When an unknown route is visited, the app automatically redirects to the home/login route and does not display the current NotFoundPage UI.",
+        "Valid routes never show the NotFoundPage UI.",
+        "The /debug route remains accessible and functional."
       ]
     }
   ],
   "constraints": [
-    "Do not edit files under the immutable frontend paths: `frontend/src/hooks/useInternetIdentity.ts`, `frontend/src/hooks/useInternetIdentity.tsx`, `frontend/src/hooks/useActor.ts`, `frontend/src/main.tsx`, `frontend/src/components/ui`.",
-    "Preserve hash-based routing (`createHashHistory`) behavior in `frontend/src/App.tsx`.",
-    "Backend must remain a single Motoko actor in `backend/main.mo` (no additional backend services)."
+    "Do not modify files under frontend/src/hooks/useInternetIdentity.ts, frontend/src/hooks/useInternetIdentity.tsx, frontend/src/hooks/useActor.ts, frontend/src/main.tsx, or anything under frontend/src/components/ui (compose instead).",
+    "Keep routing user-facing text in English."
   ],
   "nonGoals": [
-    "Adding new product features unrelated to diagnosing/fixing the loading failure (e.g., new auction/team/match functionality).",
-    "Changing authentication provider (must remain Internet Identity).",
-    "Introducing external logging/monitoring SaaS integrations."
+    "Adding new product features unrelated to routing (e.g., new pages, new backend functionality).",
+    "Changing authentication flows beyond what is required to make routing work."
   ],
   "imageRequirements": {
     "required": [],

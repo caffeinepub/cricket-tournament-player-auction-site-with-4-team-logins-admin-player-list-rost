@@ -1,73 +1,43 @@
 {
   "kind": "coverage_report",
   "version": "1.0",
-  "generatedAt": "2026-02-07T15:03:44.269Z",
+  "generatedAt": "2026-02-07T15:10:45.327Z",
   "sources": {
     "buildRequest": true,
     "implementationPlan": true
   },
   "requirements": {
-    "total": 4,
-    "implemented": 4,
+    "total": 2,
+    "implemented": 2,
     "items": [
       {
         "id": "REQ-1",
-        "summary": "Add a global, user-visible crash fallback so that if the React app fails to mount or throws during initial render, the page shows a clear English error state instead of a blank/failed load. This must include an Error Boundary around the app tree and a minimal fallback UI with: (1) headline indicating the app failed to load, (2) a short explanation prompting the user to refresh, and (3) a section that can reveal a technical error message/stack for debugging.",
+        "summary": "Fix client-side routing so that internal pages load correctly in production, including when users open internal URLs directly (deep links) and when navigating within the app.",
         "status": "implemented",
         "plannedFiles": [
-          "frontend/src/components/GlobalErrorBoundary.tsx",
-          "frontend/src/components/CrashFallbackScreen.tsx",
+          "frontend/src/App.tsx",
           "frontend/index.html",
-          "frontend/src/App.tsx"
+          "frontend/DEPLOYMENT.md"
         ],
         "matchedFiles": [
-          "frontend/src/components/GlobalErrorBoundary.tsx",
-          "frontend/src/components/CrashFallbackScreen.tsx",
+          "frontend/src/App.tsx",
           "frontend/index.html",
-          "frontend/src/App.tsx"
+          "frontend/DEPLOYMENT.md"
         ]
       },
       {
         "id": "REQ-2",
-        "summary": "Add initial-load diagnostics to help identify why the deployed site fails to load, without requiring developer tools. Implement a lightweight in-app diagnostic view reachable via hash routing (e.g., `#/debug`) that displays: current URL, detected canister host/origin, build/version identifier (e.g., from Vite env or package metadata), whether the app can create the backend actor, and the status/error of a simple backend query (e.g., the same call used by the login/root flow).",
+        "summary": "Remove/disable the current full-screen 'Page Not Found' experience from appearing for users during normal navigation by replacing it with a safe redirect behavior for unknown routes (e.g., redirect to the home/login route) while still allowing diagnostics access via /debug.",
         "status": "implemented",
         "plannedFiles": [
-          "frontend/src/pages/DebugPage.tsx",
-          "frontend/src/utils/runtimeDebugInfo.ts",
-          "frontend/src/App.tsx"
+          "frontend/src/components/SafeNotFoundRedirect.tsx",
+          "frontend/src/App.tsx",
+          "frontend/src/pages/NotFoundPage.tsx"
         ],
         "matchedFiles": [
-          "frontend/src/pages/DebugPage.tsx",
-          "frontend/src/utils/runtimeDebugInfo.ts",
-          "frontend/src/App.tsx"
-        ]
-      },
-      {
-        "id": "REQ-3",
-        "summary": "Harden frontend bootstrapping so that common deployment/runtime issues surface clearly: ensure unhandled promise rejections and global errors are captured and presented in the crash fallback (REQ-1) and logged to console with enough context to debug (route, origin, and error).",
-        "status": "implemented",
-        "plannedFiles": [
-          "frontend/src/utils/globalErrorHandling.ts",
-          "frontend/src/components/FatalErrorProvider.tsx",
-          "frontend/index.html",
-          "frontend/src/App.tsx"
-        ],
-        "matchedFiles": [
-          "frontend/src/utils/globalErrorHandling.ts",
-          "frontend/src/components/FatalErrorProvider.tsx",
-          "frontend/index.html",
-          "frontend/src/App.tsx"
-        ]
-      },
-      {
-        "id": "REQ-4",
-        "summary": "Update `frontend/DEPLOYMENT.md` to include a short, concrete 'Blank screen / site not loading' checklist that references the new `#/debug` page and describes how to verify `index.html` and bundled assets load (200 responses) on the deployed canister.",
-        "status": "implemented",
-        "plannedFiles": [
-          "frontend/DEPLOYMENT.md"
-        ],
-        "matchedFiles": [
-          "frontend/DEPLOYMENT.md"
+          "frontend/src/components/SafeNotFoundRedirect.tsx",
+          "frontend/src/App.tsx",
+          "frontend/src/pages/NotFoundPage.tsx"
         ]
       }
     ]
@@ -80,14 +50,8 @@
     "frontend/DEPLOYMENT.md",
     "frontend/index.html",
     "frontend/src/App.tsx",
-    "frontend/src/components/CrashFallbackScreen.tsx",
-    "frontend/src/components/FatalErrorProvider.tsx",
-    "frontend/src/components/GlobalErrorBoundary.tsx",
-    "frontend/src/components/MatchInningsScoreEditor.tsx",
-    "frontend/src/hooks/useQueries.ts",
-    "frontend/src/pages/DebugPage.tsx",
-    "frontend/src/utils/globalErrorHandling.ts",
-    "frontend/src/utils/runtimeDebugInfo.ts",
+    "frontend/src/components/SafeNotFoundRedirect.tsx",
+    "frontend/src/pages/NotFoundPage.tsx",
     "project_state.json",
     "scratch/component-selection.json",
     "spec.md",

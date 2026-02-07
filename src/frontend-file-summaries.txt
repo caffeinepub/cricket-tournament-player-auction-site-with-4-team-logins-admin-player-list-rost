@@ -1,5 +1,5 @@
 {
-  "frontend/src/App.tsx": "Main application component with TanStack Router using hash-based history, wrapped in GlobalErrorBoundary and FatalErrorProvider for comprehensive error handling, including new /debug route, with error context properly spread into a new object to satisfy type requirements.",
+  "frontend/src/App.tsx": "Main application component with TanStack Router using path-based history for production deep links, with legacy hash URL upgrade compatibility and SafeNotFoundRedirect for unknown routes.",
   "frontend/src/pages/LoginPage.tsx": "Landing page with HPL branding and logo, displaying \"Hostel Premier League Team Auction & Management\" title, with direct navigation to admin/team views and optional Internet Identity sign-in.",
   "frontend/src/pages/TeamDashboardPage.tsx": "Team dashboard accessible to all users with team selector for anonymous/non-team users, showing overview and matches tabs with full functionality for any selected team, using nullish coalescing to convert undefined to null for hook parameters.",
   "frontend/src/pages/AdminDashboardPage.tsx": "Admin dashboard with five tabs (Players, Teams, Matches, Auction Summary, Tournament) for comprehensive HPL management.",
@@ -14,13 +14,13 @@
   "frontend/src/main.tsx": "Application entry point that sets up React Query and Internet Identity providers, with CSS import from ./index.css in the src directory.",
   "frontend/src/index.css": "Global styles with OKLCH color system featuring cricket-themed palette with emerald greens (primary), amber/gold accents, and warm neutrals for both light and dark modes.",
   "frontend/src/hooks/useActor.ts": "Hook for initializing backend actor with Internet Identity authentication, removing the deprecated _initializeAccessControlWithSecret call to work with the new MixinAuthorization backend pattern.",
-  "frontend/index.html": "HTML entry point with dark mode enabled and early boot error fallback script that captures startup errors before React mounts and displays styled error UI.",
+  "frontend/index.html": "HTML entry point with dark mode enabled, early boot error fallback script, and updated diagnostics button pointing to path-based /debug route.",
   "frontend/src/components/MatchManagement.tsx": "Admin component for managing matches with creation dialog, match list table showing publish status badges, per-match share action with guided publish+share flow using stable shareableId reuse, and edit dialog with publish/unpublish controls and shareable link functionality.",
   "frontend/src/components/TeamMatches.tsx": "Component for displaying match schedules and detailed scorecards with optional teamId prop to filter matches for a specific team or show all matches.",
   "frontend/src/components/PlayerAuctionDialog.tsx": "Reusable dialog component for managing per-player auctions with auto-refresh polling (via refetchInterval in the query), clear messaging that any logged-in user can bid on behalf of any team, enhanced authorization error handling with English messages, and immediate UI updates after bid attempts.",
   "frontend/src/components/TeamBoughtPlayersSection.tsx": "Reusable component that displays a team's bought players using the useGetPlayersForTeam query hook, with loading skeleton, error state, and empty state when no players are assigned.",
   "frontend/src/components/LeadingTeamIndicator.tsx": "Reusable component that displays a prominent \"Leading\" badge with crown icon and team name, styled with amber colors and subtle glow animation for visual emphasis in auction contexts.",
-  "frontend/DEPLOYMENT.md": "Comprehensive deployment guide with dedicated blank screen troubleshooting section including step-by-step diagnostics using #/debug page and asset verification instructions.",
+  "frontend/DEPLOYMENT.md": "Comprehensive deployment guide documenting path-based routing behavior, SPA hosting requirements, legacy hash URL compatibility, and blank screen troubleshooting steps.",
   "frontend/src/components/TeamOwnersManagement.tsx": "Component for managing team owner principals with add/remove functionality and custom display name editing using a Map for owner name lookups.",
   "frontend/src/utils/csvExport.ts": "Client-side CSV export utility that converts auction summary data into downloadable CSV files with English headers (team name, player name, price, total purse, spent, remaining).",
   "frontend/src/components/AuctionSummary.tsx": "Admin component displaying comprehensive auction summary with team statistics, roster details, and CSV export functionality for all teams and their bought players.",
@@ -35,11 +35,12 @@
   "frontend/src/components/PublicInningsContextCard.tsx": "Read-only card component displaying live innings context (current batsmen, bowler, over progress, completed overs, last ball outcome) for a single innings on the public scorecard page.",
   "frontend/src/components/PublicBallByBallFeed.tsx": "Read-only ball-by-ball feed component that groups and displays all balls by innings and over with newest first, highlighting the latest ball with visual emphasis.",
   "frontend/.ic-assets.json5": "Internet Computer asset canister configuration that ensures proper serving of the SPA with correct MIME types, caching policies, and security headers for all static assets.",
-  "frontend/src/pages/NotFoundPage.tsx": "Client-side 404 page component that displays a user-friendly \"Page Not Found\" message with navigation options to return home or access admin/team dashboards.",
+  "frontend/src/pages/NotFoundPage.tsx": "Deprecated component no longer used in routing; unknown routes now automatically redirect to home via SafeNotFoundRedirect.",
   "frontend/src/components/GlobalErrorBoundary.tsx": "React Error Boundary component that catches render errors and displays CrashFallbackScreen with error details and recovery options.",
   "frontend/src/components/CrashFallbackScreen.tsx": "Styled fallback UI component that displays application crash information with refresh/debug options and expandable technical details using shadcn/ui components.",
   "frontend/src/utils/runtimeDebugInfo.ts": "Utility functions to collect and format runtime diagnostic information including URL, origin, build details, and environment context.",
   "frontend/src/utils/globalErrorHandling.ts": "Global error capture system that registers window error and unhandled rejection listeners, logs structured context, and triggers callbacks for fatal error handling.",
   "frontend/src/components/FatalErrorProvider.tsx": "React context provider that manages fatal error state and renders CrashFallbackScreen when global errors occur during startup.",
-  "frontend/src/pages/DebugPage.tsx": "Diagnostics page displaying backend connection status, test backend call results, URL/origin information, and build details for troubleshooting deployment issues."
+  "frontend/src/pages/DebugPage.tsx": "Diagnostics page displaying backend connection status, test backend call results, URL/origin information, and build details for troubleshooting deployment issues.",
+  "frontend/src/components/SafeNotFoundRedirect.tsx": "Safe redirect component that automatically redirects unknown routes to home without showing a full-screen 404 UI."
 }

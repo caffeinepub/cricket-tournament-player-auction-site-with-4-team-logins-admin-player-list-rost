@@ -2,13 +2,12 @@
   "kind": "feature_evidence_report",
   "features": [
     {
-      "featureId": "feature-add-a-global-user-visible-crash-fallback-so-that-if-the-react-app-fails-to-mount-or-throws-during-initial-render-the-page-shows-a-clear-english-error-state-instead-of-a-blank-failed-load-this-must-include-an-error-boundary-around-the-app-tree-and-a-minimal-fallback-ui-with-1-headline-indicating-the-app-failed-to-load-2-a-short-explanation-prompting-the-user-to-refresh-and-3-a-section-that-can-reveal-a-technical-error-message-stack-for-debugging",
-      "featureTitle": "Add a global, user-visible crash fallback so that if the React app fails to mount or throws during initial render, the page shows a clear English error state instead of a blank/failed load. This must include an Error Boundary around the app tree and a minimal fallback UI with: (1) headline indicating the app failed to load, (2) a short explanation prompting the user to refresh, and (3) a section that can reveal a technical error message/stack for debugging.",
+      "featureId": "feature-fix-client-side-routing-so-that-internal-pages-load-correctly-in-production-including-when-users-open-internal-urls-directly-deep-links-and-when-navigating-within-the-app",
+      "featureTitle": "Fix client-side routing so that internal pages load correctly in production, including when users open internal URLs directly (deep links) and when navigating within the app.",
       "files": [
+        "frontend/DEPLOYMENT.md",
         "frontend/index.html",
-        "frontend/src/App.tsx",
-        "frontend/src/components/CrashFallbackScreen.tsx",
-        "frontend/src/components/GlobalErrorBoundary.tsx"
+        "frontend/src/App.tsx"
       ],
       "components": [
         "authorization@4.0.0",
@@ -24,12 +23,12 @@
       "confidence": "high"
     },
     {
-      "featureId": "feature-add-initial-load-diagnostics-to-help-identify-why-the-deployed-site-fails-to-load-without-requiring-developer-tools-implement-a-lightweight-in-app-diagnostic-view-reachable-via-hash-routing-e-g-debug-that-displays-current-url-detected-canister-host-origin-build-version-identifier-e-g-from-vite-env-or-package-metadata-whether-the-app-can-create-the-backend-actor-and-the-status-error-of-a-simple-backend-query-e-g-the-same-call-used-by-the-login-root-flow",
-      "featureTitle": "Add initial-load diagnostics to help identify why the deployed site fails to load, without requiring developer tools. Implement a lightweight in-app diagnostic view reachable via hash routing (e.g., `#/debug`) that displays: current URL, detected canister host/origin, build/version identifier (e.g., from Vite env or package metadata), whether the app can create the backend actor, and the status/error of a simple backend query (e.g., the same call used by the login/root flow).",
+      "featureId": "feature-remove-disable-the-current-full-screen-page-not-found-experience-from-appearing-for-users-during-normal-navigation-by-replacing-it-with-a-safe-redirect-behavior-for-unknown-routes-e-g-redirect-to-the-home-login-route-while-still-allowing-diagnostics-access-via-debug",
+      "featureTitle": "Remove/disable the current full-screen 'Page Not Found' experience from appearing for users during normal navigation by replacing it with a safe redirect behavior for unknown routes (e.g., redirect to the home/login route) while still allowing diagnostics access via /debug.",
       "files": [
         "frontend/src/App.tsx",
-        "frontend/src/pages/DebugPage.tsx",
-        "frontend/src/utils/runtimeDebugInfo.ts"
+        "frontend/src/components/SafeNotFoundRedirect.tsx",
+        "frontend/src/pages/NotFoundPage.tsx"
       ],
       "components": [
         "authorization@4.0.0",
@@ -41,47 +40,6 @@
       ],
       "testIds": [
         "REQ-2"
-      ],
-      "confidence": "high"
-    },
-    {
-      "featureId": "feature-harden-frontend-bootstrapping-so-that-common-deployment-runtime-issues-surface-clearly-ensure-unhandled-promise-rejections-and-global-errors-are-captured-and-presented-in-the-crash-fallback-req-1-and-logged-to-console-with-enough-context-to-debug-route-origin-and-error",
-      "featureTitle": "Harden frontend bootstrapping so that common deployment/runtime issues surface clearly: ensure unhandled promise rejections and global errors are captured and presented in the crash fallback (REQ-1) and logged to console with enough context to debug (route, origin, and error).",
-      "files": [
-        "frontend/index.html",
-        "frontend/src/App.tsx",
-        "frontend/src/components/FatalErrorProvider.tsx",
-        "frontend/src/utils/globalErrorHandling.ts"
-      ],
-      "components": [
-        "authorization@4.0.0",
-        "core-infrastructure@1.0.2",
-        "shadcn-ui@1.0.0",
-        "build-template-react@1.0.0",
-        "initial-app@1.0.0",
-        "github-export-icp-cli@1.0.0"
-      ],
-      "testIds": [
-        "REQ-3"
-      ],
-      "confidence": "high"
-    },
-    {
-      "featureId": "feature-update-frontend-deployment-md-to-include-a-short-concrete-blank-screen-site-not-loading-checklist-that-references-the-new-debug-page-and-describes-how-to-verify-index-html-and-bundled-assets-load-200-responses-on-the-deployed-canister",
-      "featureTitle": "Update `frontend/DEPLOYMENT.md` to include a short, concrete 'Blank screen / site not loading' checklist that references the new `#/debug` page and describes how to verify `index.html` and bundled assets load (200 responses) on the deployed canister.",
-      "files": [
-        "frontend/DEPLOYMENT.md"
-      ],
-      "components": [
-        "authorization@4.0.0",
-        "core-infrastructure@1.0.2",
-        "shadcn-ui@1.0.0",
-        "build-template-react@1.0.0",
-        "initial-app@1.0.0",
-        "github-export-icp-cli@1.0.0"
-      ],
-      "testIds": [
-        "REQ-4"
       ],
       "confidence": "high"
     }

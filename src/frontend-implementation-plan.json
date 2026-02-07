@@ -1,108 +1,57 @@
 {
   "kind": "implementation_plan",
   "version": "1.0",
-  "title": "Runtime crash fallback + #/debug diagnostics to prevent blank-screen deploy failures",
+  "title": "Stabilize SPA routing and replace Not Found page with safe redirect",
   "requirements": [
     {
       "id": "REQ-1",
-      "summary": "Add a global, user-visible crash fallback that replaces blank screens when the app fails to mount or throws during initial render.",
+      "summary": "Ensure client-side routing works reliably in production for in-app navigation, deep links, and refreshes across all valid routes.",
       "acceptanceCriteria": [
-        "If a top-level render error is intentionally triggered, users see a styled fallback screen (not a blank page).",
-        "Fallback UI text is in English and includes a refresh instruction.",
-        "The fallback UI can display (or toggle) the underlying error message for troubleshooting."
+        "Navigating via in-app buttons/links loads these routes reliably: / (Login), /team, /admin, /s/<shareId>, /debug.",
+        "Opening a deep link directly in the browser address bar loads the intended page instead of Not Found (e.g., opening /team results in the Team Dashboard, opening /s/<shareId> results in the Public Scorecard).",
+        "Refreshing the browser on an internal route does not land on Not Found for valid routes."
       ],
       "file_operations": [
         {
-          "path": "frontend/src/components/GlobalErrorBoundary.tsx",
-          "operation": "create",
-          "description": "Create a top-level React Error Boundary that catches render/commit errors and renders a crash fallback screen; include support for showing error message/stack details. Use shadcn-ui components (e.g., Card/Button/Accordion or similar) to keep the fallback styled and consistent. Verify the component's usage instructions before implementing."
-        },
-        {
-          "path": "frontend/src/components/CrashFallbackScreen.tsx",
-          "operation": "create",
-          "description": "Implement the minimal fallback UI required by REQ-1: (1) English headline indicating the app failed to load, (2) short explanation prompting refresh, (3) a section that can reveal technical error details (message/stack/captured context). Use shadcn-ui building blocks for layout/controls. Verify the component's usage instructions before implementing."
+          "path": "frontend/src/App.tsx",
+          "operation": "modify",
+          "description": "Switch routing to use path-based history suitable for production deep links, and add a small compatibility layer that upgrades legacy hash URLs (e.g., #/team) to path URLs (e.g., /team) on initial load to prevent mismatches and unexpected Not Found states."
         },
         {
           "path": "frontend/index.html",
           "operation": "modify",
-          "description": "Add an early, non-React boot fallback container and tiny runtime script that can swap the page into a clear English error state if a startup error occurs before React mounts (e.g., script load/runtime exception). Ensure this fallback includes refresh guidance and a way to reveal technical details (captured error text)."
+          "description": "Update the pre-React boot error fallback action that navigates to diagnostics so it points to the /debug route under path-based routing (instead of using a hash route), ensuring diagnostics access works even when React fails to mount."
         },
         {
-          "path": "frontend/src/App.tsx",
+          "path": "frontend/DEPLOYMENT.md",
           "operation": "modify",
-          "description": "Wrap the router/app tree in the new GlobalErrorBoundary so initial render failures show the crash fallback instead of a blank screen; keep createHashHistory hash-routing behavior unchanged."
+          "description": "Document the expected SPA routing behavior in production (path-based routes like /team and /s/<shareId>) and the requirement that the host serve the app entry file for deep links/refresh so valid routes load correctly."
         }
       ]
     },
     {
       "id": "REQ-2",
-      "summary": "Add a lightweight in-app diagnostics view at #/debug showing URL/origin info, build identifier, actor creation status, and a simple backend call result.",
+      "summary": "Remove the full-screen NotFoundPage experience and replace it with a safe redirect for unknown routes while keeping /debug accessible.",
       "acceptanceCriteria": [
-        "Navigating to `#/debug` renders a diagnostic page.",
-        "The diagnostic page shows the current URL and origin information.",
-        "The diagnostic page shows whether the backend actor is available and displays success/error results of at least one backend call.",
-        "All user-facing text is in English."
+        "When an unknown route is visited, the app automatically redirects to the home/login route and does not display the current NotFoundPage UI.",
+        "Valid routes never show the NotFoundPage UI.",
+        "The /debug route remains accessible and functional."
       ],
       "file_operations": [
         {
-          "path": "frontend/src/pages/DebugPage.tsx",
+          "path": "frontend/src/components/SafeNotFoundRedirect.tsx",
           "operation": "create",
-          "description": "Create a Debug page reachable via hash routing that displays: current URL, origin/host details, inferred canister host/origin signals, build/version identifiers (from available Vite env values), backend actor availability (via useActor), and the status/result of at least one backend call (e.g., getCallerUserRole). Use shadcn-ui components for readable presentation and optional detail toggles. Verify the component's usage instructions before implementing."
-        },
-        {
-          "path": "frontend/src/utils/runtimeDebugInfo.ts",
-          "operation": "create",
-          "description": "Add helpers to compute and format diagnostic signals for display/logging (e.g., location.href, location.origin, hash route, env-derived build info, and any IC host/origin inference used by the app configuration)."
+          "description": "Add a small router-aware component that performs a safe redirect to the home/login route for unknown routes (no full-screen 404 UI shown)."
         },
         {
           "path": "frontend/src/App.tsx",
           "operation": "modify",
-          "description": "Register a new TanStack Router route for /debug (hash path #/debug) and wire it into the existing route tree without changing createHashHistory behavior."
-        }
-      ]
-    },
-    {
-      "id": "REQ-3",
-      "summary": "Capture global errors and unhandled promise rejections during startup, log structured context, and surface them through the crash fallback when feasible.",
-      "acceptanceCriteria": [
-        "Unhandled exceptions and unhandled promise rejections during startup are captured.",
-        "When a global error occurs, the app shows the fallback UI from REQ-1 (when feasible) and logs a structured error with URL/origin context to the console."
-      ],
-      "file_operations": [
-        {
-          "path": "frontend/src/utils/globalErrorHandling.ts",
-          "operation": "create",
-          "description": "Implement a small global error capture utility that registers window error + unhandledrejection listeners, normalizes errors into a consistent shape, and logs structured context to console (URL, origin, current hash route, and error details)."
+          "description": "Replace current notFound handling to use SafeNotFoundRedirect (instead of NotFoundPage) as the router/root not-found behavior, while leaving the explicit /debug route unchanged and accessible."
         },
         {
-          "path": "frontend/src/components/FatalErrorProvider.tsx",
-          "operation": "create",
-          "description": "Add a lightweight provider/gate that can receive fatal global errors from the globalErrorHandling utility and, when present, render CrashFallbackScreen using the captured error + context. Use shadcn-ui components in any UI it renders. Verify the component's usage instructions before implementing."
-        },
-        {
-          "path": "frontend/index.html",
+          "path": "frontend/src/pages/NotFoundPage.tsx",
           "operation": "modify",
-          "description": "Extend the early startup script to also capture unhandled errors/rejections that occur before React mounts, log them to console with URL/origin context, and render the non-React boot fallback when React has not mounted yet."
-        },
-        {
-          "path": "frontend/src/App.tsx",
-          "operation": "modify",
-          "description": "Wire the global error handling into the React app lifecycle (e.g., initialize listeners once) and ensure FatalErrorProvider sits above the router so global errors during startup can show the same crash fallback UI."
-        }
-      ]
-    },
-    {
-      "id": "REQ-4",
-      "summary": "Add a concrete blank-screen troubleshooting checklist to frontend/DEPLOYMENT.md referencing #/debug and verifying index.html/assets load correctly.",
-      "acceptanceCriteria": [
-        "`frontend/DEPLOYMENT.md` includes a dedicated section for 'site not loading/blank screen'.",
-        "The section includes steps to open `#/debug` and interpret key signals (actor available, backend call success/error)."
-      ],
-      "file_operations": [
-        {
-          "path": "frontend/DEPLOYMENT.md",
-          "operation": "modify",
-          "description": "Add a dedicated 'Blank screen / site not loading' checklist that: (a) instructs opening `#/debug`, (b) explains how to interpret actor availability and backend call success/error, and (c) describes how to verify `index.html` and bundled assets return 200 responses from the deployed frontend canister."
+          "description": "Deprecate the NotFoundPage UI so it is not presented during normal navigation (e.g., replace with a minimal internal-only stub or comment indicating it is no longer wired into routing), ensuring user-facing routing text remains English."
         }
       ]
     }

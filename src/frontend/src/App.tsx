@@ -1,4 +1,4 @@
-import { RouterProvider, createRouter, createRoute, createRootRoute, Outlet, createHashHistory } from '@tanstack/react-router';
+import { RouterProvider, createRouter, createRoute, createRootRoute, Outlet, createBrowserHistory } from '@tanstack/react-router';
 import { useEffect } from 'react';
 import { useInternetIdentity } from './hooks/useInternetIdentity';
 import { useGetCallerUserProfile } from './hooks/useQueries';
@@ -7,7 +7,7 @@ import TeamDashboardPage from './pages/TeamDashboardPage';
 import AdminDashboardPage from './pages/AdminDashboardPage';
 import PublicScorecardPage from './pages/PublicScorecardPage';
 import DebugPage from './pages/DebugPage';
-import NotFoundPage from './pages/NotFoundPage';
+import SafeNotFoundRedirect from './components/SafeNotFoundRedirect';
 import ProfileSetupModal from './components/ProfileSetupModal';
 import GlobalErrorBoundary from './components/GlobalErrorBoundary';
 import FatalErrorProvider, { useFatalError } from './components/FatalErrorProvider';
@@ -17,7 +17,7 @@ import { Toaster } from '@/components/ui/sonner';
 // Root route with layout
 const rootRoute = createRootRoute({
   component: RootLayout,
-  notFoundComponent: NotFoundPage,
+  notFoundComponent: SafeNotFoundRedirect,
 });
 
 function RootLayout() {
@@ -30,6 +30,16 @@ function RootLayout() {
   // Set document title
   useEffect(() => {
     document.title = 'Hostel Premier League Team Auction & Management';
+  }, []);
+
+  // Upgrade legacy hash URLs to path-based URLs on initial load
+  useEffect(() => {
+    const hash = window.location.hash;
+    if (hash && hash.startsWith('#/')) {
+      const path = hash.substring(1); // Remove the '#'
+      window.history.replaceState(null, '', path);
+      window.location.reload();
+    }
   }, []);
 
   return (
@@ -80,13 +90,13 @@ const debugRoute = createRoute({
 
 const routeTree = rootRoute.addChildren([loginRoute, teamRoute, adminRoute, publicScorecardRoute, debugRoute]);
 
-// Use hash history for production-safe deep links
-const hashHistory = createHashHistory();
+// Use browser history for production-safe deep links
+const browserHistory = createBrowserHistory();
 
 const router = createRouter({ 
   routeTree,
-  history: hashHistory,
-  defaultNotFoundComponent: NotFoundPage,
+  history: browserHistory,
+  defaultNotFoundComponent: SafeNotFoundRedirect,
 });
 
 declare module '@tanstack/react-router' {

@@ -1,50 +1,57 @@
 {
   "kind": "spec_vs_diff_report",
   "version": "1.0",
-  "generatedAt": "2026-02-07T15:03:44.266Z",
-  "summary": "REQ-1, REQ-2, and REQ-3 appear largely implemented via a global Error Boundary + fatal error provider, early boot fallback in index.html, global error/unhandled rejection capture, and a new /debug diagnostics route/page. REQ-4 is not evidenced in the provided DEPLOYMENT.md diff content. One unrelated behavioral change (auth-gating match score editing) appears in the diff.",
+  "generatedAt": "2026-02-07T15:10:45.324Z",
+  "summary": "Routing was updated to use TanStack Router with browser history and to redirect unknown routes to '/' without showing a NotFound UI. However, the diff does not show any production hosting/rewrites configuration changes required for deep links/refresh to work when the server would otherwise return a 404 for non-root paths.",
   "missing_requirements": [
     {
-      "id": "REQ-2",
-      "requirement": "Diagnostics page must display a build/version identifier (e.g., from Vite env or package metadata).",
-      "reason": "runtimeDebugInfo only exposes buildInfo.mode and buildInfo.nodeEnv; no app version/build identifier is shown in the diff evidence.",
+      "id": "REQ-1",
+      "requirement": "Deep links and refreshes on valid internal routes must work in production (server/hosting must serve index.html for SPA routes).",
+      "reason": "The router is switched to browser-history navigation, but there is no evidence of changes to the production hosting rewrite/fallback configuration (e.g., IC asset config) that would ensure requests to /team, /admin, /s/<shareId>, /debug return the SPA entry document instead of a server 404. DEPLOYMENT.md mentions this requirement but no such config file changes are shown in the diff summary.",
       "evidence": [
-        "frontend/src/utils/runtimeDebugInfo.ts",
-        "frontend/src/pages/DebugPage.tsx"
-      ]
-    },
-    {
-      "id": "REQ-4",
-      "requirement": "Update frontend/DEPLOYMENT.md with a dedicated 'Blank screen / site not loading' checklist referencing #/debug and how to verify index.html/assets return 200 on the deployed canister.",
-      "reason": "The DEPLOYMENT.md snippet shown does not include the required troubleshooting/checklist section; only the header/intro and the start of a 'Production Deployment' section are visible.",
-      "evidence": [
+        "frontend/src/App.tsx",
         "frontend/DEPLOYMENT.md"
       ]
     }
   ],
   "hallucinated_features": [
     {
-      "description": "Added an authentication requirement to edit match innings/player performance (shows 'Please log in to edit player performance data.').",
-      "reason": "The BuildRequest focuses on diagnosing/fixing a blank screen and adding crash/diagnostic tooling; it explicitly lists unrelated product/feature changes as non-goals.",
+      "description": "Automatic upgrade of legacy hash URLs (e.g., '#/team') to path-based URLs with a forced reload.",
+      "reason": "Not requested explicitly in REQ-1/REQ-2; it is an extra behavior added beyond the stated acceptance criteria.",
       "evidence": [
-        "frontend/src/components/MatchInningsScoreEditor.tsx"
+        "frontend/src/App.tsx"
+      ]
+    },
+    {
+      "description": "Change/force the document title to 'Hostel Premier League Team Auction & Management'.",
+      "reason": "Not requested and unrelated to fixing SPA routing / removing NotFound UI.",
+      "evidence": [
+        "frontend/src/App.tsx"
+      ]
+    },
+    {
+      "description": "Project metadata/state updates (adding entries like AR-1..AR-4 in project_state.json).",
+      "reason": "Not part of the requested routing fix implementation; appears to be process bookkeeping rather than product behavior required by REQ-1/REQ-2.",
+      "evidence": [
+        "project_state.json"
+      ]
+    },
+    {
+      "description": "Added/updated deployment documentation about routing behavior and troubleshooting.",
+      "reason": "Documentation changes were not requested by REQ-1/REQ-2 (though they are related, they are not part of the stated requirements).",
+      "evidence": [
+        "frontend/DEPLOYMENT.md"
       ]
     }
   ],
-  "confidence": 0.66,
+  "confidence": 0.64,
   "changed_files": [
     "frontend-file-summaries.txt",
     "frontend/DEPLOYMENT.md",
     "frontend/index.html",
     "frontend/src/App.tsx",
-    "frontend/src/components/CrashFallbackScreen.tsx",
-    "frontend/src/components/FatalErrorProvider.tsx",
-    "frontend/src/components/GlobalErrorBoundary.tsx",
-    "frontend/src/components/MatchInningsScoreEditor.tsx",
-    "frontend/src/hooks/useQueries.ts",
-    "frontend/src/pages/DebugPage.tsx",
-    "frontend/src/utils/globalErrorHandling.ts",
-    "frontend/src/utils/runtimeDebugInfo.ts",
+    "frontend/src/components/SafeNotFoundRedirect.tsx",
+    "frontend/src/pages/NotFoundPage.tsx",
     "project_state.json"
   ]
 }
