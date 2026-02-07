@@ -1,28 +1,53 @@
 {
   "kind": "implementation_plan",
   "version": "1.0",
-  "title": "Admin assigned players: show sold price and reflect remaining purse based on sold amounts",
+  "title": "Per-innings editable scorecard with player-name selection",
   "requirements": [
     {
-      "id": "REQ-3",
-      "summary": "Add a “Sold For” column in Admin → Player Management assigned players table and consume sold-amount-aware assignment data so purse/remaining purse displays stay consistent after refetch.",
+      "id": "REQ-4",
+      "summary": "Implement an editable per-innings scorecard UI (Innings 1/2) with player selection by name and save-to-backend, read-only when unauthenticated.",
       "acceptanceCriteria": [
-        "The Assigned Players table shows a \"Sold For\" column for each assigned player.",
-        "For players assigned via auction, the UI displays the auction winning amount as the sold amount.",
-        "For manually assigned players, the UI displays the stored sold amount (defaulting to base price if that is what the backend stored).",
-        "After assigning a player (manual or auction), the team purse/remaining purse displayed in the UI updates after query invalidation/refetch and matches the backend’s remaining purse calculation.",
-        "No changes are made to files under frontend/src/hooks/useInternetIdentity.ts, frontend/src/hooks/useInternetIdentity.tsx, frontend/src/hooks/useActor.ts, frontend/src/main.tsx, or frontend/src/components/ui (compose existing components instead)."
+        "In the Match edit dialog, the per-innings editor allows selecting a player for each batting/bowling row from the existing Players list (showing player names), and editing the relevant numeric fields.",
+        "The user can edit Innings 1 and Innings 2 independently (changes in one innings do not affect the other innings).",
+        "Saving edits triggers backend mutations and the displayed scorecard refreshes immediately after success (React Query cache invalidation).",
+        "If the user is not authenticated, the UI remains read-only and clearly indicates login is required (English text)."
       ],
       "file_operations": [
         {
-          "path": "frontend/src/hooks/useQueries.ts",
+          "path": "frontend/src/components/MatchInningsScoreEditor.tsx",
           "operation": "modify",
-          "description": "Add a new React Query hook (e.g., useGetPlayerTeamAssignmentsWithSoldAmount) that fetches assignment rows including team id + sold amount via the existing backend actor method, and returns a lookup structure usable by the Player Management assigned table. Update relevant mutations (manual assign, remove, assign-after-auction) to invalidate/refetch this new query key alongside existing purse/budget/summary keys so UI remaining purse updates after backend recalculation."
+          "description": "Convert the innings tabs into a true per-innings editor: render editable controls (player selector backed by the existing Players list + numeric inputs) for batting and bowling rows scoped to the currently selected innings, maintain separate local edit state per innings, and add explicit Save actions that call the new React Query mutation hooks. If the user is not authenticated (per the authorization component’s Internet Identity state), keep the UI read-only and show an English message indicating login is required to edit. Verify the component's usage instructions before implementing."
         },
         {
-          "path": "frontend/src/components/PlayerManagement.tsx",
+          "path": "frontend/src/components/MatchManagement.tsx",
           "operation": "modify",
-          "description": "Update the Assigned Players table in Admin → Player Management to use the sold-amount-aware assignments hook and add a new \"Sold For\" column. Format the sold amount using the existing ₹ and Cr convention (e.g., \"₹ 3.20 Cr\"), and ensure unassigned players remain unaffected. Compose existing shadcn/ui Table components without modifying frontend/src/components/ui."
+          "description": "Wire the editable per-innings scorecard editor into the existing match edit dialog flow: ensure the dialog that currently edits match results also presents the per-innings scorecard editor for the selected match, passes down any needed context (e.g., matchId, match data, and whether the user is authenticated via the authorization component), and ensures successful saves trigger immediate visible refresh (via React Query invalidation in hooks). Verify the component's usage instructions before implementing."
+        }
+      ]
+    },
+    {
+      "id": "REQ-5",
+      "summary": "Update frontend bindings/types and React Query hooks to support per-innings scorecard upsert/update APIs and new fields (e.g., bowler innings) end-to-end.",
+      "acceptanceCriteria": [
+        "New React Query mutation hooks exist for the new backend scorecard update/upsert APIs and are used by the per-innings editor.",
+        "After successful mutations, match queries that power the scorecard UI are invalidated/refetched so the UI reflects saved changes without a manual refresh.",
+        "TypeScript types used by the UI compile cleanly after the backend Candid/interface changes."
+      ],
+      "file_operations": [
+        {
+          "path": "frontend/src/backend.d.ts",
+          "operation": "modify",
+          "description": "Regenerate/adjust the TypeScript backend bindings to match the updated Candid after backend scorecard changes: include any new per-innings fields needed by the UI (notably BowlerPerformance. innings) and add the new/updated backend function signatures for per-innings batsman/bowler upsert/update. Ensure all imports using these types compile cleanly."
+        },
+        {
+          "path": "frontend/src/hooks/useQueries.ts",
+          "operation": "modify",
+          "description": "Add React Query mutation hooks for the new per-innings scorecard update/upsert backend capabilities (batsman and bowler), and ensure onSuccess invalidates/refetches the match queries that drive the scorecard UI (at minimum the existing ['allMatches'] queryKey). Handle authorization trap errors gracefully in mutations and surface usable messages to the UI. Verify the component's usage instructions before implementing."
+        },
+        {
+          "path": "frontend/src/components/MatchInningsScoreEditor.tsx",
+          "operation": "modify",
+          "description": "Adopt the new hooks/types: switch innings filtering to rely on the new per-innings data (e.g., bowler innings field and/or per-innings groupings), and use the new React Query mutation hooks when saving edits so the editor reads/writes per innings correctly."
         }
       ]
     }

@@ -1,11 +1,13 @@
 # Specification
 
 ## Summary
-**Goal:** Store and surface each assigned player’s final sold amount, and base team remaining purse calculations and bid validation on actual spend.
+**Goal:** Enable editing and saving per-innings scorecards (Innings 1 / Innings 2) with selectable player names, backed by per-innings storage and update APIs.
 
 **Planned changes:**
-- Persist a sold amount per player assignment (auction: winning bid; manual: default to player base price unless already recorded) and compute each team’s remaining purse from the sum of sold amounts of its assigned players.
-- Update backend APIs/queries for the assignment listing to return assigned team id plus sold amount per assigned player (null/absent when unassigned), with authorization consistent with existing admin assignment views.
-- Update Admin → Player Management assigned players table to add a “Sold For” column showing the stored sold amount using existing ₹ / Cr formatting, and ensure displayed team purse/remaining purse reflects the backend’s sold-amount-based calculation after refetch.
+- Update backend match performance schema to store/query bowling (and other scorecard items needed by the UI) per innings, including adding an `innings` field to bowler performance records.
+- Add backend per-innings scorecard upsert/update APIs for batsman and bowler performance, allowing corrections to player selection (`playerId`) and numeric values with existing match-modification authorization.
+- Add/extend backend state migration so existing canister data upgrades cleanly and existing records get deterministic default innings values.
+- Implement an editable per-innings scorecard editor in the match edit dialog that supports selecting players by name and editing values independently for Innings 1 and Innings 2, with authenticated-only editing.
+- Update frontend bindings/types and React Query hooks to use the new APIs/fields and refresh displayed scorecards after saves (cache invalidation/refetch).
 
-**User-visible outcome:** Admins can see a “Sold For” value for each assigned player, and team remaining purse (and bid acceptance) correctly reflects the actual amounts spent on assigned players.
+**User-visible outcome:** Authenticated users can edit Innings 1 and Innings 2 scorecards independently (including choosing player names for each row) and save corrections; unauthenticated users see a read-only scorecard with a clear login-required message.

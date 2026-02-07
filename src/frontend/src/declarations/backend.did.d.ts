@@ -42,7 +42,7 @@ export interface FielderPerformance {
   'dismissals' : bigint,
   'catches' : bigint,
 }
-export interface Match {
+export interface MatchView {
   'bowlers' : Array<BowlerPerformance>,
   'awayTeamId' : bigint,
   'date' : string,
@@ -50,7 +50,9 @@ export interface Match {
   'awayTeamName' : string,
   'awayTeamRuns' : bigint,
   'homeTeamId' : bigint,
+  'bowlersByInnings' : Array<[bigint, Array<BowlerPerformance>]>,
   'homeTeamWickets' : bigint,
+  'matchId' : bigint,
   'homeTeamName' : string,
   'homeTeamRuns' : bigint,
   'fielders' : Array<FielderPerformance>,
@@ -83,6 +85,10 @@ export interface _SERVICE {
     undefined
   >,
   'addBowlerPerformance' : ActorMethod<[bigint, BowlerPerformance], undefined>,
+  'addBowlerPerformanceWithInnings' : ActorMethod<
+    [bigint, BowlerPerformance, bigint],
+    undefined
+  >,
   'addFielderPerformance' : ActorMethod<
     [bigint, FielderPerformance],
     undefined
@@ -90,6 +96,15 @@ export interface _SERVICE {
   'addPlayerToTeam' : ActorMethod<[bigint, bigint], undefined>,
   'assignCallerUserRole' : ActorMethod<[Principal, UserRole], undefined>,
   'assignPlayerAfterAuction' : ActorMethod<[bigint], undefined>,
+  /**
+   * / Change the name of an owner. Any authenticated user can set owner names.
+   */
+  'changeOwnerName' : ActorMethod<[Principal, string], undefined>,
+  /**
+   * / Change the name of a team. Any authenticated user can change team names.
+   */
+  'changeTeamName' : ActorMethod<[bigint, string], undefined>,
+  'clearOwnerName' : ActorMethod<[Principal], undefined>,
   'createMatch' : ActorMethod<
     [bigint, bigint, string, string, string, string],
     bigint
@@ -98,7 +113,8 @@ export interface _SERVICE {
   'createTeam' : ActorMethod<[string, number, Array<Principal>], undefined>,
   'deletePlayer' : ActorMethod<[bigint], undefined>,
   'generateFixtures' : ActorMethod<[string, string], undefined>,
-  'getAllMatches' : ActorMethod<[], Array<Match>>,
+  'getAllMatches' : ActorMethod<[], Array<[bigint, MatchView]>>,
+  'getAllOwnerNames' : ActorMethod<[], Array<[Principal, string]>>,
   'getAllPlayers' : ActorMethod<[], Array<Player>>,
   'getAllTeamBudgets' : ActorMethod<[], Array<TeamBudget>>,
   'getAllTeamSummaries' : ActorMethod<[], Array<TeamSummary>>,
@@ -110,22 +126,34 @@ export interface _SERVICE {
     [],
     [Array<TeamSummary>, Array<TeamExtended>, Array<Player>]
   >,
-  'getMatchById' : ActorMethod<[bigint], [] | [Match]>,
+  'getMatchById' : ActorMethod<[bigint], [] | [MatchView]>,
+  'getOwnerName' : ActorMethod<[Principal], [] | [string]>,
   'getPlayerTeamAssignmentsWithSoldAmount' : ActorMethod<
     [],
     Array<[bigint, [] | [bigint], number]>
   >,
   'getPlayersForTeam' : ActorMethod<[bigint], Array<Player>>,
   'getRemainingTeamPurse' : ActorMethod<[bigint], number>,
-  'getTeamSummary' : ActorMethod<[bigint], [] | [TeamSummary]>,
   'getUserProfile' : ActorMethod<[Principal], [] | [UserProfile]>,
   'isCallerAdmin' : ActorMethod<[], boolean>,
   'placeBid' : ActorMethod<[bigint, bigint, number], undefined>,
+  /**
+   * / Self-registration: any authenticated (non-anonymous) principal can register as a user
+   */
   'registerAsUser' : ActorMethod<[], undefined>,
   'removePlayerFromTeam' : ActorMethod<[bigint, bigint], undefined>,
   'saveCallerUserProfile' : ActorMethod<[UserProfile], undefined>,
   'startAuction' : ActorMethod<[bigint, number, boolean], undefined>,
   'stopAuction' : ActorMethod<[bigint], undefined>,
+  'updateBowlerPerformance' : ActorMethod<
+    [bigint, BowlerPerformance, bigint],
+    undefined
+  >,
+  'updateBowlerPerformanceForUpdate' : ActorMethod<
+    [bigint, bigint, bigint, BowlerPerformance],
+    undefined
+  >,
+  'updateInningsStart' : ActorMethod<[bigint, bigint], undefined>,
   'updateMatchResults' : ActorMethod<
     [bigint, bigint, bigint, bigint, bigint, string],
     undefined

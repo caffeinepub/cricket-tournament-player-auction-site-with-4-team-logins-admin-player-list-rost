@@ -1,16 +1,24 @@
 {
   "schemaVersion": "1.0.0",
   "projectStateVersion": 3,
-  "summary": "New project",
+  "summary": "Cricket match management app with match-editing flow and per-innings scorecard updates.",
   "architectural_notes": [],
   "known_issues": [],
   "isFixRequest": false,
   "existing_features": [
     {
-      "id": "feature-in-the-admin-player-management-assigned-players-table-the-assign-player-list-add-a-new-column-labeled-sold-for-that-displays-the-player-s-sold-amount-e-g-3-20-cr-for-each-assigned-player-ensure-the-displayed-team-purse-remaining-purse-across-the-app-reflects-the-updated-backend-calculation-based-on-sold-amounts-spent",
-      "title": "In the Admin → Player Management assigned players table (the \"assign player list\"), add a new column labeled \"Sold For\" that displays the player’s sold amount (e.g., \"₹ 3.20 Cr\") for each assigned player. Ensure the displayed team purse/remaining purse across the app reflects the updated backend calculation based on sold amounts spent.",
+      "id": "feature-implement-an-editable-per-innings-scorecard-ui-that-lets-an-authenticated-user-update-player-selection-player-name-via-selecting-a-player-and-scorecard-values-for-each-innings-innings-1-and-innings-2-and-save-those-edits-to-the-backend",
+      "title": "Implement an editable per-innings scorecard UI that lets an authenticated user update player selection (player name via selecting a player) and scorecard values for each innings (Innings 1 and Innings 2), and save those edits to the backend.",
       "reqIds": [
-        "REQ-3"
+        "REQ-4"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-update-react-query-hooks-and-generated-frontend-backend-bindings-types-to-support-the-new-updated-backend-scorecard-apis-and-any-new-fields-e-g-bowler-innings-so-the-per-innings-editor-can-read-and-write-data-end-to-end",
+      "title": "Update React Query hooks and generated frontend backend bindings/types to support the new/updated backend scorecard APIs and any new fields (e.g., bowler `innings`) so the per-innings editor can read and write data end-to-end.",
+      "reqIds": [
+        "REQ-5"
       ],
       "version": 1
     }
@@ -18,13 +26,13 @@
   "new_feature_requests": [
     {
       "id": "AR-1",
-      "summary": "In the assign player list, add a column showing each player's sold amount and update each team's purse based on amount spent",
+      "summary": "Allow updating the scorecard along with player names for each innings.",
       "reqIds": [],
       "status": "pending"
     },
     {
       "id": "AR-2",
-      "summary": "Persist each assigned player’s final sold amount (auction winning bid) in the backend, and compute each team’s remaining purse by subtracting the sum of sold amounts for players assigned to that team (not the player base price). Ensure this sold amount is recorded when a player is assigned after an auction, and also when a player is manually assigned to a team (use the player’s base price as the sold amount for manual assignments unless an explicit sold amount is already recorded).",
+      "summary": "Update the backend match performance data model so bowling (and any other per-innings scorecard items needed by the UI) can be stored and queried per innings, not only as a single combined list.",
       "reqIds": [
         "REQ-1"
       ],
@@ -32,14 +40,22 @@
     },
     {
       "id": "AR-3",
-      "summary": "Expose the sold amount data to the frontend for the player assignment view. Update or add a backend query that returns, for each player assignment, both the assigned team id and the sold amount for that player so the UI can render it without additional client-side inference.",
+      "summary": "Add backend APIs to create and update (not only append) per-innings scorecard entries so users can correct player selection (playerId) and score values for a specific match and innings.",
       "reqIds": [
         "REQ-2"
       ],
       "status": "pending"
+    },
+    {
+      "id": "AR-4",
+      "summary": "Add/extend state migration so existing canister state is preserved when upgrading to the new per-innings scorecard schema (including defaults for any newly added fields such as bowler `innings`).",
+      "reqIds": [
+        "REQ-3"
+      ],
+      "status": "pending"
     }
   ],
-  "projectName": "Show sold price in assigned player list and deduct team purse based on amount spent",
+  "projectName": "Enable per-innings scorecard updates with player selection (names)",
   "clarification_mode": "instant",
   "clarification_rounds": 0
 }

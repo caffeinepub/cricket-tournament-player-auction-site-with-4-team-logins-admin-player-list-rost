@@ -1,43 +1,81 @@
 {
   "kind": "spec_vs_diff_report",
   "version": "1.0",
-  "generatedAt": "2026-02-07T10:06:06.374Z",
-  "summary": "Diff introduces a new backend concept of playerAssignments including soldAmount and updates frontend to fetch/display sold amounts, but the provided diff summary is truncated and does not clearly show the required write-path changes (recording sold amounts on assignment/finalization, bid validation against remaining purse) or the backend query/auth for returning sold amounts. Additionally, there appears to be an unrequested change to an immutable frontend hook file (useActor.ts).",
+  "generatedAt": "2026-02-07T12:02:17.899Z",
+  "summary": "Partial implementation: frontend adds a per-innings score editor UI (with innings tabs and player selection) and backend adds a new match field `bowlersByInnings` plus a migration file. However, key backend schema/API requirements for per-innings bowler records and upsert/update APIs (especially for batsmen) are not evidenced in the diff summary, and migration does not set deterministic default innings values for existing records. Several unrelated UI/theme changes also appear.",
   "missing_requirements": [
     {
       "id": "REQ-1",
-      "requirement": "Persist each assigned player’s final sold amount and use it (not base price) to compute remaining purse; record soldAmount on auction assignment and on manual assignment (default base price); reject bids exceeding remaining purse; removing a player stops counting their soldAmount.",
-      "reason": "backend/main.mo shows a new PlayerAssignment type, a playerAssignments map, and remaining purse calculation summing assignment.soldAmount, but the diff excerpt does not show the mutation logic that (a) writes soldAmount on auction finalization/assignment, (b) defaults soldAmount to basePrice for manual assignments, (c) enforces bid rejection based on remaining purse computed from sold amounts, or (d) updates/removal behavior to stop counting removed players. Without these code paths visible in the diff summary, the acceptance criteria cannot be confirmed as implemented.",
+      "requirement": "Bowler performance records include an `innings : Nat` field so the frontend can filter bowlers by innings reliably; existing match data can still be read after the change.",
+      "reason": "The diff shows a new `bowlersByInnings` map added to `Match`, but does not show any change to the `BowlerPerformance` record type to include an `innings : Nat` field (required by AC). Also, the migration sets `bowlersByInnings` to empty but does not demonstrate how existing bowler records become per-innings queryable via an `innings` field.",
       "evidence": [
-        "backend/main.mo (truncated: shows PlayerAssignment { teamId; soldAmount } and calculateRemainingPurse summing playerAssignments.soldAmount, but not the assignment/bidding mutation logic)",
-        "backend/migration.mo (maps old playerToTeam to soldAmount = 0.0, which does not match the manual-assignment default-to-base-price requirement for existing data)"
+        "backend/main.mo",
+        "backend/migration.mo"
       ]
     },
     {
       "id": "REQ-2",
-      "requirement": "Expose sold amount data via an authorized backend query returning, per player, assigned team id and sold amount (absent when unassigned).",
-      "reason": "Frontend adds a hook that calls actor.getPlayerTeamAssignmentsWithSoldAmount(), but the diff summary does not include evidence of a corresponding backend query method implementation or its authorization behavior, nor does it show how unassigned players are represented (null/absent) in the backend response.",
+      "requirement": "Add backend APIs to create and update/upsert per-innings scorecard entries for batsmen and bowlers (including changing playerId), with existing match-modification authorization and Unauthorized trap on rejection.",
+      "reason": "Frontend uses `useAddBatsmanPerformance` (suggesting append) and `useUpdateBowlerPerformance`, but the diff summary does not show backend APIs that upsert/update batsman performance for a specific match+innings (including playerId changes), nor a corresponding bowler upsert/update API with match+innings targeting and required authorization behavior.",
       "evidence": [
-        "frontend/src/hooks/useQueries.ts (calls actor.getPlayerTeamAssignmentsWithSoldAmount and expects tuples [playerId, teamId, soldAmount])",
-        "backend/main.mo (truncated: no visible definition of getPlayerTeamAssignmentsWithSoldAmount)"
+        "frontend/src/components/MatchInningsScoreEditor.tsx",
+        "frontend/src/hooks/useQueries.ts",
+        "backend/main.mo"
+      ]
+    },
+    {
+      "id": "REQ-3",
+      "requirement": "Add/extend state migration so existing canister state is preserved when upgrading to the new per-innings scorecard schema, including deterministic default innings for existing bowler entries (documented).",
+      "reason": "Migration only adds `bowlersByInnings = Map.empty(...)` to each match and does not assign a deterministic default innings value to existing bowler performance entries (nor document such a default).",
+      "evidence": [
+        "backend/migration.mo"
+      ]
+    },
+    {
+      "id": "REQ-4",
+      "requirement": "If the user is not authenticated, the per-innings scorecard UI remains read-only and clearly indicates login is required (English text).",
+      "reason": "The editor component returns an Alert and does not render any read-only scorecard editor/values when unauthenticated; this does not meet the “remains read-only” requirement as written (it appears to hide the editor rather than render it read-only).",
+      "evidence": [
+        "frontend/src/components/MatchInningsScoreEditor.tsx"
+      ]
+    },
+    {
+      "id": "REQ-5",
+      "requirement": "Update React Query hooks and generated frontend backend bindings/types to support the new/updated backend scorecard update/upsert APIs and any new fields (e.g., bowler `innings`) end-to-end.",
+      "reason": "While hooks are referenced, the diff summary does not provide evidence of updated generated backend bindings/candid types to include the new backend APIs and required new fields (e.g., bowler `innings`). Also, the required new batsman upsert/update mutation hook (not just add/append) is not evidenced in the shown imports/usage.",
+      "evidence": [
+        "frontend/src/hooks/useQueries.ts",
+        "frontend/src/components/MatchInningsScoreEditor.tsx",
+        "backend/main.mo"
       ]
     }
   ],
   "hallucinated_features": [
     {
-      "description": "Modifying an immutable frontend hook file (frontend/src/hooks/useActor.ts).",
-      "reason": "The BuildRequest explicitly forbids editing frontend/src/hooks/useActor.ts, but the diff summary’s frontend file summaries describe changes to this file (removing a deprecated initialization call). This is outside the requested scope and violates constraints.",
+      "description": "Global theming/dark-mode and Tailwind animation additions unrelated to per-innings scorecard editing.",
+      "reason": "BuildRequest does not ask for styling/theme changes, new animation keyframes, or forcing dark mode by default.",
       "evidence": [
-        "frontend-file-summaries.txt (entry for \"frontend/src/hooks/useActor.ts\": describes behavior changes)"
+        "frontend/tailwind.config.js",
+        "frontend/index.html",
+        "frontend/index.css",
+        "frontend/src/index.css"
+      ]
+    },
+    {
+      "description": "Changes to actor initialization hook regarding removal of a deprecated `_initializeAccessControlWithSecret` call.",
+      "reason": "Not requested by the BuildRequest; appears to be an unrelated refactor/compatibility change.",
+      "evidence": [
+        "frontend/src/hooks/useActor.ts"
       ]
     }
   ],
-  "confidence": 0.56,
+  "confidence": 0.62,
   "changed_files": [
     "backend/main.mo",
     "backend/migration.mo",
     "frontend-file-summaries.txt",
-    "frontend/src/components/PlayerManagement.tsx",
+    "frontend/src/components/MatchInningsScoreEditor.tsx",
+    "frontend/src/components/MatchManagement.tsx",
     "frontend/src/hooks/useQueries.ts",
     "project_state.json"
   ]

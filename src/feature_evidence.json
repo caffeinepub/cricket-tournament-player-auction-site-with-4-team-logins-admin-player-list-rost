@@ -2,10 +2,30 @@
   "kind": "feature_evidence_report",
   "features": [
     {
-      "featureId": "feature-in-the-admin-player-management-assigned-players-table-the-assign-player-list-add-a-new-column-labeled-sold-for-that-displays-the-player-s-sold-amount-e-g-3-20-cr-for-each-assigned-player-ensure-the-displayed-team-purse-remaining-purse-across-the-app-reflects-the-updated-backend-calculation-based-on-sold-amounts-spent",
-      "featureTitle": "In the Admin → Player Management assigned players table (the \"assign player list\"), add a new column labeled \"Sold For\" that displays the player’s sold amount (e.g., \"₹ 3.20 Cr\") for each assigned player. Ensure the displayed team purse/remaining purse across the app reflects the updated backend calculation based on sold amounts spent.",
+      "featureId": "feature-implement-an-editable-per-innings-scorecard-ui-that-lets-an-authenticated-user-update-player-selection-player-name-via-selecting-a-player-and-scorecard-values-for-each-innings-innings-1-and-innings-2-and-save-those-edits-to-the-backend",
+      "featureTitle": "Implement an editable per-innings scorecard UI that lets an authenticated user update player selection (player name via selecting a player) and scorecard values for each innings (Innings 1 and Innings 2), and save those edits to the backend.",
       "files": [
-        "frontend/src/components/PlayerManagement.tsx",
+        "frontend/src/components/MatchInningsScoreEditor.tsx",
+        "frontend/src/components/MatchManagement.tsx"
+      ],
+      "components": [
+        "authorization@4.0.0",
+        "core-infrastructure@1.0.2",
+        "shadcn-ui@1.0.0",
+        "build-template-react@1.0.0",
+        "initial-app@1.0.0",
+        "github-export-icp-cli@1.0.0"
+      ],
+      "testIds": [
+        "REQ-4"
+      ],
+      "confidence": "high"
+    },
+    {
+      "featureId": "feature-update-react-query-hooks-and-generated-frontend-backend-bindings-types-to-support-the-new-updated-backend-scorecard-apis-and-any-new-fields-e-g-bowler-innings-so-the-per-innings-editor-can-read-and-write-data-end-to-end",
+      "featureTitle": "Update React Query hooks and generated frontend backend bindings/types to support the new/updated backend scorecard APIs and any new fields (e.g., bowler `innings`) so the per-innings editor can read and write data end-to-end.",
+      "files": [
+        "frontend/src/components/MatchInningsScoreEditor.tsx",
         "frontend/src/hooks/useQueries.ts"
       ],
       "components": [
@@ -17,7 +37,7 @@
         "github-export-icp-cli@1.0.0"
       ],
       "testIds": [
-        "REQ-3"
+        "REQ-5"
       ],
       "confidence": "high"
     }

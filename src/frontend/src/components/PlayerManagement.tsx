@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useGetAllPlayers, useGetPlayerTeamAssignmentsWithSoldAmount, useCreatePlayer, useUpdatePlayer, useDeletePlayer, useGetAllTeams, useAddPlayerToTeam, useRemovePlayerFromTeam } from '../hooks/useQueries';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -10,7 +10,6 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
 import { toast } from 'sonner';
 import { Plus, Edit, Trash2, UserPlus, UserMinus, Gavel, AlertCircle } from 'lucide-react';
 import PlayerAuctionDialog from './PlayerAuctionDialog';
@@ -18,7 +17,7 @@ import type { Player } from '../backend';
 
 export default function PlayerManagement() {
   const { data: players, isLoading: playersLoading } = useGetAllPlayers();
-  const { data: assignments, isLoading: assignmentsLoading } = useGetPlayerTeamAssignmentsWithSoldAmount();
+  const { data: assignmentsArray, isLoading: assignmentsLoading } = useGetPlayerTeamAssignmentsWithSoldAmount();
   const { data: teams } = useGetAllTeams();
   const createPlayerMutation = useCreatePlayer();
   const updatePlayerMutation = useUpdatePlayer();
@@ -38,6 +37,17 @@ export default function PlayerManagement() {
 
   const [editPlayerName, setEditPlayerName] = useState('');
   const [editPlayerPrice, setEditPlayerPrice] = useState('');
+
+  // Convert assignments array to Map for easier lookup
+  const assignments = useMemo(() => {
+    if (!assignmentsArray) return new Map();
+    return new Map(
+      assignmentsArray.map(([playerId, teamId, soldAmount]) => [
+        playerId.toString(),
+        { teamId, soldAmount }
+      ])
+    );
+  }, [assignmentsArray]);
 
   const handleCreatePlayer = async () => {
     if (!newPlayerName.trim() || !newPlayerPrice) {
@@ -158,8 +168,8 @@ export default function PlayerManagement() {
   }
 
   // Partition players into unassigned and assigned
-  const unassignedPlayers = players?.filter(p => !assignments?.get(p.id.toString())?.teamId) || [];
-  const assignedPlayers = players?.filter(p => assignments?.get(p.id.toString())?.teamId) || [];
+  const unassignedPlayers = players?.filter(p => !assignments.get(p.id.toString())?.teamId) || [];
+  const assignedPlayers = players?.filter(p => assignments.get(p.id.toString())?.teamId) || [];
 
   return (
     <div className="space-y-6">
@@ -324,7 +334,7 @@ export default function PlayerManagement() {
                     </TableHeader>
                     <TableBody>
                       {assignedPlayers.map((player) => {
-                        const assignment = assignments?.get(player.id.toString());
+                        const assignment = assignments.get(player.id.toString());
                         const teamId = assignment?.teamId;
                         const soldAmount = assignment?.soldAmount || 0;
                         const team = teams?.find(t => t.id === teamId);
@@ -449,10 +459,10 @@ export default function PlayerManagement() {
       </Dialog>
 
       {/* Auction Dialog */}
-      {selectedPlayer && (
+      {selectedPlayer && teams && (
         <PlayerAuctionDialog
           player={selectedPlayer}
-          teams={teams || []}
+          teams={teams.map(t => ({ id: t.id, name: t.name, totalPurse: t.totalPurse }))}
           open={isAuctionDialogOpen}
           onOpenChange={setIsAuctionDialogOpen}
         />

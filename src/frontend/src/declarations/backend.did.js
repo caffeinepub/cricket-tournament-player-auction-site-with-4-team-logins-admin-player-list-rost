@@ -35,7 +35,7 @@ export const UserRole = IDL.Variant({
   'user' : IDL.Null,
   'guest' : IDL.Null,
 });
-export const Match = IDL.Record({
+export const MatchView = IDL.Record({
   'bowlers' : IDL.Vec(BowlerPerformance),
   'awayTeamId' : IDL.Nat,
   'date' : IDL.Text,
@@ -43,7 +43,9 @@ export const Match = IDL.Record({
   'awayTeamName' : IDL.Text,
   'awayTeamRuns' : IDL.Nat,
   'homeTeamId' : IDL.Nat,
+  'bowlersByInnings' : IDL.Vec(IDL.Tuple(IDL.Nat, IDL.Vec(BowlerPerformance))),
   'homeTeamWickets' : IDL.Nat,
+  'matchId' : IDL.Nat,
   'homeTeamName' : IDL.Text,
   'homeTeamRuns' : IDL.Nat,
   'fielders' : IDL.Vec(FielderPerformance),
@@ -95,10 +97,18 @@ export const idlService = IDL.Service({
   '_initializeAccessControlWithSecret' : IDL.Func([IDL.Text], [], []),
   'addBatsmanPerformance' : IDL.Func([IDL.Nat, BatsmanPerformance], [], []),
   'addBowlerPerformance' : IDL.Func([IDL.Nat, BowlerPerformance], [], []),
+  'addBowlerPerformanceWithInnings' : IDL.Func(
+      [IDL.Nat, BowlerPerformance, IDL.Nat],
+      [],
+      [],
+    ),
   'addFielderPerformance' : IDL.Func([IDL.Nat, FielderPerformance], [], []),
   'addPlayerToTeam' : IDL.Func([IDL.Nat, IDL.Nat], [], []),
   'assignCallerUserRole' : IDL.Func([IDL.Principal, UserRole], [], []),
   'assignPlayerAfterAuction' : IDL.Func([IDL.Nat], [], []),
+  'changeOwnerName' : IDL.Func([IDL.Principal, IDL.Text], [], []),
+  'changeTeamName' : IDL.Func([IDL.Nat, IDL.Text], [], []),
+  'clearOwnerName' : IDL.Func([IDL.Principal], [], []),
   'createMatch' : IDL.Func(
       [IDL.Nat, IDL.Nat, IDL.Text, IDL.Text, IDL.Text, IDL.Text],
       [IDL.Nat],
@@ -112,7 +122,16 @@ export const idlService = IDL.Service({
     ),
   'deletePlayer' : IDL.Func([IDL.Nat], [], []),
   'generateFixtures' : IDL.Func([IDL.Text, IDL.Text], [], []),
-  'getAllMatches' : IDL.Func([], [IDL.Vec(Match)], ['query']),
+  'getAllMatches' : IDL.Func(
+      [],
+      [IDL.Vec(IDL.Tuple(IDL.Nat, MatchView))],
+      ['query'],
+    ),
+  'getAllOwnerNames' : IDL.Func(
+      [],
+      [IDL.Vec(IDL.Tuple(IDL.Principal, IDL.Text))],
+      ['query'],
+    ),
   'getAllPlayers' : IDL.Func([], [IDL.Vec(Player)], ['query']),
   'getAllTeamBudgets' : IDL.Func([], [IDL.Vec(TeamBudget)], ['query']),
   'getAllTeamSummaries' : IDL.Func([], [IDL.Vec(TeamSummary)], ['query']),
@@ -125,7 +144,8 @@ export const idlService = IDL.Service({
       [IDL.Vec(TeamSummary), IDL.Vec(TeamExtended), IDL.Vec(Player)],
       ['query'],
     ),
-  'getMatchById' : IDL.Func([IDL.Nat], [IDL.Opt(Match)], ['query']),
+  'getMatchById' : IDL.Func([IDL.Nat], [IDL.Opt(MatchView)], ['query']),
+  'getOwnerName' : IDL.Func([IDL.Principal], [IDL.Opt(IDL.Text)], ['query']),
   'getPlayerTeamAssignmentsWithSoldAmount' : IDL.Func(
       [],
       [IDL.Vec(IDL.Tuple(IDL.Nat, IDL.Opt(IDL.Nat), IDL.Float64))],
@@ -133,7 +153,6 @@ export const idlService = IDL.Service({
     ),
   'getPlayersForTeam' : IDL.Func([IDL.Nat], [IDL.Vec(Player)], ['query']),
   'getRemainingTeamPurse' : IDL.Func([IDL.Nat], [IDL.Float64], ['query']),
-  'getTeamSummary' : IDL.Func([IDL.Nat], [IDL.Opt(TeamSummary)], ['query']),
   'getUserProfile' : IDL.Func(
       [IDL.Principal],
       [IDL.Opt(UserProfile)],
@@ -146,6 +165,17 @@ export const idlService = IDL.Service({
   'saveCallerUserProfile' : IDL.Func([UserProfile], [], []),
   'startAuction' : IDL.Func([IDL.Nat, IDL.Float64, IDL.Bool], [], []),
   'stopAuction' : IDL.Func([IDL.Nat], [], []),
+  'updateBowlerPerformance' : IDL.Func(
+      [IDL.Nat, BowlerPerformance, IDL.Nat],
+      [],
+      [],
+    ),
+  'updateBowlerPerformanceForUpdate' : IDL.Func(
+      [IDL.Nat, IDL.Nat, IDL.Nat, BowlerPerformance],
+      [],
+      [],
+    ),
+  'updateInningsStart' : IDL.Func([IDL.Nat, IDL.Nat], [], []),
   'updateMatchResults' : IDL.Func(
       [IDL.Nat, IDL.Nat, IDL.Nat, IDL.Nat, IDL.Nat, IDL.Text],
       [],
@@ -186,7 +216,7 @@ export const idlFactory = ({ IDL }) => {
     'user' : IDL.Null,
     'guest' : IDL.Null,
   });
-  const Match = IDL.Record({
+  const MatchView = IDL.Record({
     'bowlers' : IDL.Vec(BowlerPerformance),
     'awayTeamId' : IDL.Nat,
     'date' : IDL.Text,
@@ -194,7 +224,11 @@ export const idlFactory = ({ IDL }) => {
     'awayTeamName' : IDL.Text,
     'awayTeamRuns' : IDL.Nat,
     'homeTeamId' : IDL.Nat,
+    'bowlersByInnings' : IDL.Vec(
+      IDL.Tuple(IDL.Nat, IDL.Vec(BowlerPerformance))
+    ),
     'homeTeamWickets' : IDL.Nat,
+    'matchId' : IDL.Nat,
     'homeTeamName' : IDL.Text,
     'homeTeamRuns' : IDL.Nat,
     'fielders' : IDL.Vec(FielderPerformance),
@@ -246,10 +280,18 @@ export const idlFactory = ({ IDL }) => {
     '_initializeAccessControlWithSecret' : IDL.Func([IDL.Text], [], []),
     'addBatsmanPerformance' : IDL.Func([IDL.Nat, BatsmanPerformance], [], []),
     'addBowlerPerformance' : IDL.Func([IDL.Nat, BowlerPerformance], [], []),
+    'addBowlerPerformanceWithInnings' : IDL.Func(
+        [IDL.Nat, BowlerPerformance, IDL.Nat],
+        [],
+        [],
+      ),
     'addFielderPerformance' : IDL.Func([IDL.Nat, FielderPerformance], [], []),
     'addPlayerToTeam' : IDL.Func([IDL.Nat, IDL.Nat], [], []),
     'assignCallerUserRole' : IDL.Func([IDL.Principal, UserRole], [], []),
     'assignPlayerAfterAuction' : IDL.Func([IDL.Nat], [], []),
+    'changeOwnerName' : IDL.Func([IDL.Principal, IDL.Text], [], []),
+    'changeTeamName' : IDL.Func([IDL.Nat, IDL.Text], [], []),
+    'clearOwnerName' : IDL.Func([IDL.Principal], [], []),
     'createMatch' : IDL.Func(
         [IDL.Nat, IDL.Nat, IDL.Text, IDL.Text, IDL.Text, IDL.Text],
         [IDL.Nat],
@@ -263,7 +305,16 @@ export const idlFactory = ({ IDL }) => {
       ),
     'deletePlayer' : IDL.Func([IDL.Nat], [], []),
     'generateFixtures' : IDL.Func([IDL.Text, IDL.Text], [], []),
-    'getAllMatches' : IDL.Func([], [IDL.Vec(Match)], ['query']),
+    'getAllMatches' : IDL.Func(
+        [],
+        [IDL.Vec(IDL.Tuple(IDL.Nat, MatchView))],
+        ['query'],
+      ),
+    'getAllOwnerNames' : IDL.Func(
+        [],
+        [IDL.Vec(IDL.Tuple(IDL.Principal, IDL.Text))],
+        ['query'],
+      ),
     'getAllPlayers' : IDL.Func([], [IDL.Vec(Player)], ['query']),
     'getAllTeamBudgets' : IDL.Func([], [IDL.Vec(TeamBudget)], ['query']),
     'getAllTeamSummaries' : IDL.Func([], [IDL.Vec(TeamSummary)], ['query']),
@@ -276,7 +327,8 @@ export const idlFactory = ({ IDL }) => {
         [IDL.Vec(TeamSummary), IDL.Vec(TeamExtended), IDL.Vec(Player)],
         ['query'],
       ),
-    'getMatchById' : IDL.Func([IDL.Nat], [IDL.Opt(Match)], ['query']),
+    'getMatchById' : IDL.Func([IDL.Nat], [IDL.Opt(MatchView)], ['query']),
+    'getOwnerName' : IDL.Func([IDL.Principal], [IDL.Opt(IDL.Text)], ['query']),
     'getPlayerTeamAssignmentsWithSoldAmount' : IDL.Func(
         [],
         [IDL.Vec(IDL.Tuple(IDL.Nat, IDL.Opt(IDL.Nat), IDL.Float64))],
@@ -284,7 +336,6 @@ export const idlFactory = ({ IDL }) => {
       ),
     'getPlayersForTeam' : IDL.Func([IDL.Nat], [IDL.Vec(Player)], ['query']),
     'getRemainingTeamPurse' : IDL.Func([IDL.Nat], [IDL.Float64], ['query']),
-    'getTeamSummary' : IDL.Func([IDL.Nat], [IDL.Opt(TeamSummary)], ['query']),
     'getUserProfile' : IDL.Func(
         [IDL.Principal],
         [IDL.Opt(UserProfile)],
@@ -297,6 +348,17 @@ export const idlFactory = ({ IDL }) => {
     'saveCallerUserProfile' : IDL.Func([UserProfile], [], []),
     'startAuction' : IDL.Func([IDL.Nat, IDL.Float64, IDL.Bool], [], []),
     'stopAuction' : IDL.Func([IDL.Nat], [], []),
+    'updateBowlerPerformance' : IDL.Func(
+        [IDL.Nat, BowlerPerformance, IDL.Nat],
+        [],
+        [],
+      ),
+    'updateBowlerPerformanceForUpdate' : IDL.Func(
+        [IDL.Nat, IDL.Nat, IDL.Nat, BowlerPerformance],
+        [],
+        [],
+      ),
+    'updateInningsStart' : IDL.Func([IDL.Nat, IDL.Nat], [], []),
     'updateMatchResults' : IDL.Func(
         [IDL.Nat, IDL.Nat, IDL.Nat, IDL.Nat, IDL.Nat, IDL.Text],
         [],

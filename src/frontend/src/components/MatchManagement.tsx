@@ -5,24 +5,26 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Plus, Edit, Trophy, Calendar, MapPin, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
-import type { Match } from '../backend';
+import type { MatchView } from '../backend';
+import MatchInningsScoreEditor from './MatchInningsScoreEditor';
+import { useInternetIdentity } from '../hooks/useInternetIdentity';
 
 export default function MatchManagement() {
   const { data: matches, isLoading: matchesLoading } = useGetAllMatches();
   const { data: teams, isLoading: teamsLoading } = useGetAllTeams();
   const createMatchMutation = useCreateMatch();
   const updateMatchResultsMutation = useUpdateMatchResults();
+  const { identity } = useInternetIdentity();
 
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
-  const [selectedMatch, setSelectedMatch] = useState<Match | null>(null);
+  const [selectedMatch, setSelectedMatch] = useState<MatchView | null>(null);
 
   // Create match form state
   const [homeTeamId, setHomeTeamId] = useState<string>('');
@@ -36,6 +38,8 @@ export default function MatchManagement() {
   const [awayTeamRuns, setAwayTeamRuns] = useState('');
   const [awayTeamWickets, setAwayTeamWickets] = useState('');
   const [matchWinner, setMatchWinner] = useState('');
+
+  const isAuthenticated = !!identity;
 
   const handleCreateMatch = async () => {
     if (!homeTeamId || !awayTeamId || !matchDate || !location) {
@@ -76,7 +80,7 @@ export default function MatchManagement() {
     }
   };
 
-  const handleEditMatch = (match: Match) => {
+  const handleEditMatch = (match: MatchView) => {
     setSelectedMatch(match);
     setHomeTeamRuns(match.homeTeamRuns.toString());
     setHomeTeamWickets(match.homeTeamWickets.toString());
@@ -91,7 +95,7 @@ export default function MatchManagement() {
 
     try {
       await updateMatchResultsMutation.mutateAsync({
-        matchId: BigInt(matches?.indexOf(selectedMatch) || 0) + BigInt(1),
+        matchId: selectedMatch.matchId,
         homeTeamRuns: BigInt(homeTeamRuns || 0),
         homeTeamWickets: BigInt(homeTeamWickets || 0),
         awayTeamRuns: BigInt(awayTeamRuns || 0),
@@ -285,82 +289,96 @@ export default function MatchManagement() {
 
       {/* Edit Match Dialog */}
       <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
-        <DialogContent className="sm:max-w-[500px]">
+        <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Update Match Scorecard</DialogTitle>
             <DialogDescription>
               {selectedMatch && `${selectedMatch.homeTeamName} vs ${selectedMatch.awayTeamName}`}
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label>{selectedMatch?.homeTeamName} Score</Label>
-              <div className="grid grid-cols-2 gap-2">
-                <div className="space-y-1">
-                  <Label htmlFor="homeRuns" className="text-xs text-muted-foreground">Runs</Label>
-                  <Input
-                    id="homeRuns"
-                    type="number"
-                    min="0"
-                    value={homeTeamRuns}
-                    onChange={(e) => setHomeTeamRuns(e.target.value)}
-                  />
-                </div>
-                <div className="space-y-1">
-                  <Label htmlFor="homeWickets" className="text-xs text-muted-foreground">Wickets</Label>
-                  <Input
-                    id="homeWickets"
-                    type="number"
-                    min="0"
-                    max="10"
-                    value={homeTeamWickets}
-                    onChange={(e) => setHomeTeamWickets(e.target.value)}
-                  />
-                </div>
-              </div>
-            </div>
-            <div className="space-y-2">
-              <Label>{selectedMatch?.awayTeamName} Score</Label>
-              <div className="grid grid-cols-2 gap-2">
-                <div className="space-y-1">
-                  <Label htmlFor="awayRuns" className="text-xs text-muted-foreground">Runs</Label>
-                  <Input
-                    id="awayRuns"
-                    type="number"
-                    min="0"
-                    value={awayTeamRuns}
-                    onChange={(e) => setAwayTeamRuns(e.target.value)}
-                  />
-                </div>
-                <div className="space-y-1">
-                  <Label htmlFor="awayWickets" className="text-xs text-muted-foreground">Wickets</Label>
-                  <Input
-                    id="awayWickets"
-                    type="number"
-                    min="0"
-                    max="10"
-                    value={awayTeamWickets}
-                    onChange={(e) => setAwayTeamWickets(e.target.value)}
-                  />
+          <div className="space-y-6 py-4">
+            {/* Overall Match Results */}
+            <div className="space-y-4">
+              <h3 className="text-sm font-semibold">Overall Match Results</h3>
+              <div className="space-y-2">
+                <Label>{selectedMatch?.homeTeamName} Score</Label>
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="space-y-1">
+                    <Label htmlFor="homeRuns" className="text-xs text-muted-foreground">Runs</Label>
+                    <Input
+                      id="homeRuns"
+                      type="number"
+                      min="0"
+                      value={homeTeamRuns}
+                      onChange={(e) => setHomeTeamRuns(e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label htmlFor="homeWickets" className="text-xs text-muted-foreground">Wickets</Label>
+                    <Input
+                      id="homeWickets"
+                      type="number"
+                      min="0"
+                      max="10"
+                      value={homeTeamWickets}
+                      onChange={(e) => setHomeTeamWickets(e.target.value)}
+                    />
+                  </div>
                 </div>
               </div>
+              <div className="space-y-2">
+                <Label>{selectedMatch?.awayTeamName} Score</Label>
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="space-y-1">
+                    <Label htmlFor="awayRuns" className="text-xs text-muted-foreground">Runs</Label>
+                    <Input
+                      id="awayRuns"
+                      type="number"
+                      min="0"
+                      value={awayTeamRuns}
+                      onChange={(e) => setAwayTeamRuns(e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label htmlFor="awayWickets" className="text-xs text-muted-foreground">Wickets</Label>
+                    <Input
+                      id="awayWickets"
+                      type="number"
+                      min="0"
+                      max="10"
+                      value={awayTeamWickets}
+                      onChange={(e) => setAwayTeamWickets(e.target.value)}
+                    />
+                  </div>
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="winner">Match Winner</Label>
+                <Input
+                  id="winner"
+                  placeholder="e.g., Mumbai Indians"
+                  value={matchWinner}
+                  onChange={(e) => setMatchWinner(e.target.value)}
+                />
+              </div>
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="winner">Match Winner</Label>
-              <Input
-                id="winner"
-                placeholder="e.g., Mumbai Indians"
-                value={matchWinner}
-                onChange={(e) => setMatchWinner(e.target.value)}
-              />
-            </div>
+
+            {/* Innings Score Editor */}
+            {selectedMatch && (
+              <>
+                <div className="border-t pt-4">
+                  <h3 className="text-sm font-semibold mb-4">Player Performance by Innings</h3>
+                  <MatchInningsScoreEditor match={selectedMatch} />
+                </div>
+              </>
+            )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditDialogOpen(false)}>
               Cancel
             </Button>
             <Button onClick={handleUpdateMatchResults} disabled={updateMatchResultsMutation.isPending}>
-              {updateMatchResultsMutation.isPending ? 'Updating...' : 'Update Scorecard'}
+              {updateMatchResultsMutation.isPending ? 'Updating...' : 'Update Match Results'}
             </Button>
           </DialogFooter>
         </DialogContent>

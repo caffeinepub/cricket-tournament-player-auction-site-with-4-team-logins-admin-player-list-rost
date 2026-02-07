@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useGetAllTeams, useCreateTeam, useUpdateTeamPurse, useAddPlayerToTeam, useRemovePlayerFromTeam } from '../hooks/useQueries';
+import { useGetAllTeams, useCreateTeam, useUpdateTeamPurse, useChangeTeamName } from '../hooks/useQueries';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -9,7 +9,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
-import { Plus, DollarSign, Users, AlertCircle } from 'lucide-react';
+import { Plus, DollarSign, Users, AlertCircle, Edit2 } from 'lucide-react';
 import TeamBoughtPlayersSection from './TeamBoughtPlayersSection';
 import TeamOwnersManagement from './TeamOwnersManagement';
 import { Principal } from '@dfinity/principal';
@@ -18,6 +18,7 @@ export default function TeamManagement() {
   const { data: teams, isLoading } = useGetAllTeams();
   const createTeamMutation = useCreateTeam();
   const updatePurseMutation = useUpdateTeamPurse();
+  const changeTeamNameMutation = useChangeTeamName();
 
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [newTeamName, setNewTeamName] = useState('');
@@ -69,6 +70,26 @@ export default function TeamManagement() {
       setEditingPurse(null);
     } catch (error: any) {
       toast.error(error.message || 'Failed to update purse');
+    }
+  };
+
+  const [editingTeamName, setEditingTeamName] = useState<{ teamId: bigint; value: string } | null>(null);
+
+  const handleUpdateTeamName = async (teamId: bigint) => {
+    if (!editingTeamName || editingTeamName.teamId !== teamId) return;
+
+    const trimmedName = editingTeamName.value.trim();
+    if (!trimmedName) {
+      toast.error('Team name cannot be empty');
+      return;
+    }
+
+    try {
+      await changeTeamNameMutation.mutateAsync({ teamId, name: trimmedName });
+      toast.success('Team name updated successfully');
+      setEditingTeamName(null);
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to update team name');
     }
   };
 
@@ -148,8 +169,47 @@ export default function TeamManagement() {
               <Card>
                 <CardHeader>
                   <div className="flex items-start justify-between">
-                    <div>
-                      <CardTitle className="text-xl">{team.name}</CardTitle>
+                    <div className="flex-1">
+                      {editingTeamName?.teamId === team.id ? (
+                        <div className="flex gap-2 items-center">
+                          <Input
+                            value={editingTeamName.value}
+                            onChange={(e) =>
+                              setEditingTeamName({ teamId: team.id, value: e.target.value })
+                            }
+                            className="text-xl font-semibold"
+                            autoFocus
+                          />
+                          <Button
+                            size="sm"
+                            onClick={() => handleUpdateTeamName(team.id)}
+                            disabled={changeTeamNameMutation.isPending}
+                          >
+                            Save
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => setEditingTeamName(null)}
+                          >
+                            Cancel
+                          </Button>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-2">
+                          <CardTitle className="text-xl">{team.name}</CardTitle>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() =>
+                              setEditingTeamName({ teamId: team.id, value: team.name })
+                            }
+                            className="h-6 w-6 p-0"
+                          >
+                            <Edit2 className="w-3 h-3" />
+                          </Button>
+                        </div>
+                      )}
                       <CardDescription>Team ID: {team.id.toString()}</CardDescription>
                     </div>
                     <Badge variant="secondary" className="gap-1">

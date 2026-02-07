@@ -137,7 +137,7 @@ export interface AuctionState {
     fixedIncrement: boolean;
     startingBid: number;
 }
-export interface Match {
+export interface MatchView {
     bowlers: Array<BowlerPerformance>;
     awayTeamId: bigint;
     date: string;
@@ -145,7 +145,9 @@ export interface Match {
     awayTeamName: string;
     awayTeamRuns: bigint;
     homeTeamId: bigint;
+    bowlersByInnings: Array<[bigint, Array<BowlerPerformance>]>;
     homeTeamWickets: bigint;
+    matchId: bigint;
     homeTeamName: string;
     homeTeamRuns: bigint;
     fielders: Array<FielderPerformance>;
@@ -175,16 +177,27 @@ export interface backendInterface {
     _initializeAccessControlWithSecret(userSecret: string): Promise<void>;
     addBatsmanPerformance(matchId: bigint, performance: BatsmanPerformance): Promise<void>;
     addBowlerPerformance(matchId: bigint, performance: BowlerPerformance): Promise<void>;
+    addBowlerPerformanceWithInnings(matchId: bigint, performance: BowlerPerformance, innings: bigint): Promise<void>;
     addFielderPerformance(matchId: bigint, performance: FielderPerformance): Promise<void>;
     addPlayerToTeam(playerId: bigint, teamId: bigint): Promise<void>;
     assignCallerUserRole(user: Principal, role: UserRole): Promise<void>;
     assignPlayerAfterAuction(playerId: bigint): Promise<void>;
+    /**
+     * / Change the name of an owner. Any authenticated user can set owner names.
+     */
+    changeOwnerName(owner: Principal, name: string): Promise<void>;
+    /**
+     * / Change the name of a team. Any authenticated user can change team names.
+     */
+    changeTeamName(teamId: bigint, name: string): Promise<void>;
+    clearOwnerName(owner: Principal): Promise<void>;
     createMatch(homeTeamId: bigint, awayTeamId: bigint, homeTeamName: string, awayTeamName: string, date: string, location: string): Promise<bigint>;
     createPlayer(name: string, basePrice: number): Promise<void>;
     createTeam(name: string, totalPurse: number, ownerPrincipals: Array<Principal>): Promise<void>;
     deletePlayer(playerId: bigint): Promise<void>;
     generateFixtures(tournamentName: string, startDate: string): Promise<void>;
-    getAllMatches(): Promise<Array<Match>>;
+    getAllMatches(): Promise<Array<[bigint, MatchView]>>;
+    getAllOwnerNames(): Promise<Array<[Principal, string]>>;
     getAllPlayers(): Promise<Array<Player>>;
     getAllTeamBudgets(): Promise<Array<TeamBudget>>;
     getAllTeamSummaries(): Promise<Array<TeamSummary>>;
@@ -193,25 +206,31 @@ export interface backendInterface {
     getCallerUserProfile(): Promise<UserProfile | null>;
     getCallerUserRole(): Promise<UserRole>;
     getExportData(): Promise<[Array<TeamSummary>, Array<TeamExtended>, Array<Player>]>;
-    getMatchById(matchId: bigint): Promise<Match | null>;
+    getMatchById(matchId: bigint): Promise<MatchView | null>;
+    getOwnerName(owner: Principal): Promise<string | null>;
     getPlayerTeamAssignmentsWithSoldAmount(): Promise<Array<[bigint, bigint | null, number]>>;
     getPlayersForTeam(teamId: bigint): Promise<Array<Player>>;
     getRemainingTeamPurse(teamId: bigint): Promise<number>;
-    getTeamSummary(teamId: bigint): Promise<TeamSummary | null>;
     getUserProfile(user: Principal): Promise<UserProfile | null>;
     isCallerAdmin(): Promise<boolean>;
     placeBid(playerId: bigint, teamId: bigint, bidAmount: number): Promise<void>;
+    /**
+     * / Self-registration: any authenticated (non-anonymous) principal can register as a user
+     */
     registerAsUser(): Promise<void>;
     removePlayerFromTeam(playerId: bigint, teamId: bigint): Promise<void>;
     saveCallerUserProfile(profile: UserProfile): Promise<void>;
     startAuction(playerId: bigint, startingBid: number, fixedIncrement: boolean): Promise<void>;
     stopAuction(playerId: bigint): Promise<void>;
+    updateBowlerPerformance(matchId: bigint, performance: BowlerPerformance, innings: bigint): Promise<void>;
+    updateBowlerPerformanceForUpdate(matchId: bigint, playerId: bigint, innings: bigint, updatedPerformance: BowlerPerformance): Promise<void>;
+    updateInningsStart(matchId: bigint, innings: bigint): Promise<void>;
     updateMatchResults(matchId: bigint, homeTeamRuns: bigint, homeTeamWickets: bigint, awayTeamRuns: bigint, awayTeamWickets: bigint, matchWinner: string): Promise<void>;
     updatePlayer(playerId: bigint, name: string, basePrice: number): Promise<void>;
     updateTeamOwners(teamId: bigint, newOwnerPrincipals: Array<Principal>): Promise<void>;
     updateTeamPurse(teamId: bigint, newPurse: number): Promise<void>;
 }
-import type { AuctionState as _AuctionState, Match as _Match, TeamSummary as _TeamSummary, UserProfile as _UserProfile, UserRole as _UserRole } from "./declarations/backend.did.d.ts";
+import type { AuctionState as _AuctionState, MatchView as _MatchView, UserProfile as _UserProfile, UserRole as _UserRole } from "./declarations/backend.did.d.ts";
 export class Backend implements backendInterface {
     constructor(private actor: ActorSubclass<_SERVICE>, private _uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, private _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, private processError?: (error: unknown) => never){}
     async _initializeAccessControlWithSecret(arg0: string): Promise<void> {
@@ -253,6 +272,20 @@ export class Backend implements backendInterface {
             }
         } else {
             const result = await this.actor.addBowlerPerformance(arg0, arg1);
+            return result;
+        }
+    }
+    async addBowlerPerformanceWithInnings(arg0: bigint, arg1: BowlerPerformance, arg2: bigint): Promise<void> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.addBowlerPerformanceWithInnings(arg0, arg1, arg2);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.addBowlerPerformanceWithInnings(arg0, arg1, arg2);
             return result;
         }
     }
@@ -309,6 +342,48 @@ export class Backend implements backendInterface {
             }
         } else {
             const result = await this.actor.assignPlayerAfterAuction(arg0);
+            return result;
+        }
+    }
+    async changeOwnerName(arg0: Principal, arg1: string): Promise<void> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.changeOwnerName(arg0, arg1);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.changeOwnerName(arg0, arg1);
+            return result;
+        }
+    }
+    async changeTeamName(arg0: bigint, arg1: string): Promise<void> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.changeTeamName(arg0, arg1);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.changeTeamName(arg0, arg1);
+            return result;
+        }
+    }
+    async clearOwnerName(arg0: Principal): Promise<void> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.clearOwnerName(arg0);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.clearOwnerName(arg0);
             return result;
         }
     }
@@ -382,7 +457,7 @@ export class Backend implements backendInterface {
             return result;
         }
     }
-    async getAllMatches(): Promise<Array<Match>> {
+    async getAllMatches(): Promise<Array<[bigint, MatchView]>> {
         if (this.processError) {
             try {
                 const result = await this.actor.getAllMatches();
@@ -393,6 +468,20 @@ export class Backend implements backendInterface {
             }
         } else {
             const result = await this.actor.getAllMatches();
+            return result;
+        }
+    }
+    async getAllOwnerNames(): Promise<Array<[Principal, string]>> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.getAllOwnerNames();
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.getAllOwnerNames();
             return result;
         }
     }
@@ -516,7 +605,7 @@ export class Backend implements backendInterface {
             ];
         }
     }
-    async getMatchById(arg0: bigint): Promise<Match | null> {
+    async getMatchById(arg0: bigint): Promise<MatchView | null> {
         if (this.processError) {
             try {
                 const result = await this.actor.getMatchById(arg0);
@@ -530,18 +619,32 @@ export class Backend implements backendInterface {
             return from_candid_opt_n12(this._uploadFile, this._downloadFile, result);
         }
     }
+    async getOwnerName(arg0: Principal): Promise<string | null> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.getOwnerName(arg0);
+                return from_candid_opt_n13(this._uploadFile, this._downloadFile, result);
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.getOwnerName(arg0);
+            return from_candid_opt_n13(this._uploadFile, this._downloadFile, result);
+        }
+    }
     async getPlayerTeamAssignmentsWithSoldAmount(): Promise<Array<[bigint, bigint | null, number]>> {
         if (this.processError) {
             try {
                 const result = await this.actor.getPlayerTeamAssignmentsWithSoldAmount();
-                return from_candid_vec_n13(this._uploadFile, this._downloadFile, result);
+                return from_candid_vec_n14(this._uploadFile, this._downloadFile, result);
             } catch (e) {
                 this.processError(e);
                 throw new Error("unreachable");
             }
         } else {
             const result = await this.actor.getPlayerTeamAssignmentsWithSoldAmount();
-            return from_candid_vec_n13(this._uploadFile, this._downloadFile, result);
+            return from_candid_vec_n14(this._uploadFile, this._downloadFile, result);
         }
     }
     async getPlayersForTeam(arg0: bigint): Promise<Array<Player>> {
@@ -570,20 +673,6 @@ export class Backend implements backendInterface {
         } else {
             const result = await this.actor.getRemainingTeamPurse(arg0);
             return result;
-        }
-    }
-    async getTeamSummary(arg0: bigint): Promise<TeamSummary | null> {
-        if (this.processError) {
-            try {
-                const result = await this.actor.getTeamSummary(arg0);
-                return from_candid_opt_n15(this._uploadFile, this._downloadFile, result);
-            } catch (e) {
-                this.processError(e);
-                throw new Error("unreachable");
-            }
-        } else {
-            const result = await this.actor.getTeamSummary(arg0);
-            return from_candid_opt_n15(this._uploadFile, this._downloadFile, result);
         }
     }
     async getUserProfile(arg0: Principal): Promise<UserProfile | null> {
@@ -698,6 +787,48 @@ export class Backend implements backendInterface {
             return result;
         }
     }
+    async updateBowlerPerformance(arg0: bigint, arg1: BowlerPerformance, arg2: bigint): Promise<void> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.updateBowlerPerformance(arg0, arg1, arg2);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.updateBowlerPerformance(arg0, arg1, arg2);
+            return result;
+        }
+    }
+    async updateBowlerPerformanceForUpdate(arg0: bigint, arg1: bigint, arg2: bigint, arg3: BowlerPerformance): Promise<void> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.updateBowlerPerformanceForUpdate(arg0, arg1, arg2, arg3);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.updateBowlerPerformanceForUpdate(arg0, arg1, arg2, arg3);
+            return result;
+        }
+    }
+    async updateInningsStart(arg0: bigint, arg1: bigint): Promise<void> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.updateInningsStart(arg0, arg1);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.updateInningsStart(arg0, arg1);
+            return result;
+        }
+    }
     async updateMatchResults(arg0: bigint, arg1: bigint, arg2: bigint, arg3: bigint, arg4: bigint, arg5: string): Promise<void> {
         if (this.processError) {
             try {
@@ -764,10 +895,10 @@ function from_candid_UserProfile_n8(_uploadFile: (file: ExternalBlob) => Promise
 function from_candid_UserRole_n10(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: _UserRole): UserRole {
     return from_candid_variant_n11(_uploadFile, _downloadFile, value);
 }
-function from_candid_opt_n12(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: [] | [_Match]): Match | null {
+function from_candid_opt_n12(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: [] | [_MatchView]): MatchView | null {
     return value.length === 0 ? null : value[0];
 }
-function from_candid_opt_n15(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: [] | [_TeamSummary]): TeamSummary | null {
+function from_candid_opt_n13(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: [] | [string]): string | null {
     return value.length === 0 ? null : value[0];
 }
 function from_candid_opt_n3(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: [] | [_AuctionState]): AuctionState | null {
@@ -821,7 +952,7 @@ function from_candid_record_n9(_uploadFile: (file: ExternalBlob) => Promise<Uint
         teamId: record_opt_to_undefined(from_candid_opt_n6(_uploadFile, _downloadFile, value.teamId))
     };
 }
-function from_candid_tuple_n14(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: [bigint, [] | [bigint], number]): [bigint, bigint | null, number] {
+function from_candid_tuple_n15(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: [bigint, [] | [bigint], number]): [bigint, bigint | null, number] {
     return [
         value[0],
         from_candid_opt_n6(_uploadFile, _downloadFile, value[1]),
@@ -837,8 +968,8 @@ function from_candid_variant_n11(_uploadFile: (file: ExternalBlob) => Promise<Ui
 }): UserRole {
     return "admin" in value ? UserRole.admin : "user" in value ? UserRole.user : "guest" in value ? UserRole.guest : value;
 }
-function from_candid_vec_n13(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: Array<[bigint, [] | [bigint], number]>): Array<[bigint, bigint | null, number]> {
-    return value.map((x)=>from_candid_tuple_n14(_uploadFile, _downloadFile, x));
+function from_candid_vec_n14(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: Array<[bigint, [] | [bigint], number]>): Array<[bigint, bigint | null, number]> {
+    return value.map((x)=>from_candid_tuple_n15(_uploadFile, _downloadFile, x));
 }
 function to_candid_UserProfile_n16(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: UserProfile): _UserProfile {
     return to_candid_record_n17(_uploadFile, _downloadFile, value);

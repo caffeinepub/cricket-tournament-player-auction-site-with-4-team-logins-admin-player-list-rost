@@ -19,8 +19,8 @@ interface PlayerAuctionDialogProps {
 }
 
 export default function PlayerAuctionDialog({ player, teams, open, onOpenChange }: PlayerAuctionDialogProps) {
-  // Enable polling when dialog is open
-  const { data: auctionState, isLoading: auctionLoading } = useGetAuctionState(player.id, { enablePolling: open });
+  // Polling is handled by the query itself with refetchInterval
+  const { data: auctionState, isLoading: auctionLoading } = useGetAuctionState(player.id);
   const startAuction = useStartAuction();
   const placeBid = usePlaceBid();
   const assignPlayerAfterAuction = useAssignPlayerAfterAuction();
@@ -409,24 +409,27 @@ export default function PlayerAuctionDialog({ player, teams, open, onOpenChange 
                     </Button>
                   )}
 
-                  {isAuctionStopped && (
-                    <>
-                      <Button
-                        onClick={handleAssignPlayer}
-                        disabled={assignPlayerAfterAuction.isPending || !canAssign}
-                        variant={canAssign ? 'default' : 'secondary'}
-                        className={canAssign ? 'w-full bg-emerald-600 hover:bg-emerald-700' : 'w-full'}
-                      >
-                        <Trophy className="w-4 h-4 mr-2" />
-                        {assignPlayerAfterAuction.isPending ? 'Assigning...' : 'Assign Player'}
-                      </Button>
+                  {canAssign && (
+                    <Button
+                      onClick={handleAssignPlayer}
+                      disabled={assignPlayerAfterAuction.isPending}
+                      className="w-full bg-emerald-600 hover:bg-emerald-700"
+                    >
+                      <Trophy className="w-4 h-4 mr-2" />
+                      {assignPlayerAfterAuction.isPending ? 'Assigning...' : 'Assign to Winning Team'}
+                    </Button>
+                  )}
 
-                      {!canAssign && (
-                        <p className="text-xs text-center text-muted-foreground">
-                          Cannot assign player without any bids
-                        </p>
-                      )}
-                    </>
+                  {auctionState.isFinalized && (
+                    <div className="p-4 rounded-lg bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-800 text-center">
+                      <Trophy className="w-8 h-8 mx-auto mb-2 text-emerald-600" />
+                      <p className="text-sm font-semibold text-emerald-900 dark:text-emerald-100">
+                        Auction Finalized
+                      </p>
+                      <p className="text-xs text-emerald-700 dark:text-emerald-300 mt-1">
+                        Player assigned to {getHighestBiddingTeamName()}
+                      </p>
+                    </div>
                   )}
                 </>
               )}
