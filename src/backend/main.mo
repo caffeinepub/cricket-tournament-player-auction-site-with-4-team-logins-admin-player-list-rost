@@ -1,26 +1,27 @@
-import Text "mo:core/Text";
-import Float "mo:core/Float";
 import Array "mo:core/Array";
-import Order "mo:core/Order";
+import Float "mo:core/Float";
+import Iter "mo:core/Iter";
 import Map "mo:core/Map";
+import Nat "mo:core/Nat";
+import Order "mo:core/Order";
 import Principal "mo:core/Principal";
 import Runtime "mo:core/Runtime";
-import Iter "mo:core/Iter";
-import MixinAuthorization "authorization/MixinAuthorization";
+import Text "mo:core/Text";
 import AccessControl "authorization/access-control";
+import MixinAuthorization "authorization/MixinAuthorization";
+import Migration "migration";
 
+(with migration = Migration.run)
 actor {
-  // Auction data structures
+  // Initialize the access control system
+  let accessControlState = AccessControl.initState();
+  include MixinAuthorization(accessControlState);
+
+  // Types
   public type Player = {
     id : Nat;
     name : Text;
     basePrice : Float;
-  };
-
-  module Player {
-    public func compare(player1 : Player, player2 : Player) : Order.Order {
-      Nat.compare(player1.id, player2.id);
-    };
   };
 
   public type Team = {
@@ -29,43 +30,130 @@ actor {
     totalPurse : Float;
   };
 
-  module Team {
-    public func compare(team1 : Team, team2 : Team) : Order.Order {
-      Nat.compare(team1.id, team2.id);
-    };
-  };
-
   public type TeamBudget = {
     team : Team;
     remainingPurse : Float;
   };
 
-  module TeamBudget {
-    public func compare(budget1 : TeamBudget, budget2 : TeamBudget) : Order.Order {
-      Float.compare(budget1.remainingPurse, budget2.remainingPurse);
-    };
+  public type Match = {
+    homeTeamId : Nat;
+    awayTeamId : Nat;
+    homeTeamName : Text;
+    awayTeamName : Text;
+    homeTeamRuns : Nat;
+    homeTeamWickets : Nat;
+    awayTeamRuns : Nat;
+    awayTeamWickets : Nat;
+    date : Text;
+    location : Text;
+    batsmen : [BatsmanPerformance];
+    bowlers : [BowlerPerformance];
+    fielders : [FielderPerformance];
+    matchWinner : Text;
   };
 
-  // User Profile type
+  public type Scorecard = {
+    runs : Nat;
+    wickets : Nat;
+    bowlOvers : Float;
+    maidens : Nat;
+    runsConceded : Nat;
+    ballsBowled : Nat;
+    innings : Nat;
+    dismissals : Nat;
+    catches : Nat;
+    stumpings : Nat;
+  };
+
+  public type BatsmanPerformance = {
+    playerId : Nat;
+    runs : Nat;
+    ballsFaced : Nat;
+    fours : Nat;
+    sixes : Nat;
+    innings : Nat;
+  };
+
+  public type BowlerPerformance = {
+    playerId : Nat;
+    overs : Float;
+    maidens : Nat;
+    runsConceded : Nat;
+    wickets : Nat;
+    ballsBowled : Nat;
+  };
+
+  public type FielderPerformance = {
+    playerId : Nat;
+    catches : Nat;
+    stumpings : Nat;
+    dismissals : Nat;
+  };
+
   public type UserProfile = {
     name : Text;
     teamId : ?Nat;
   };
 
-  // Initialize persistent maps for players, teams, and team rosters
+  public type AuctionState = {
+    playerId : Nat;
+    startingBid : Float;
+    highestBid : Float;
+    highestBidTeamId : ?Nat;
+    isFinalized : Bool;
+    fixedIncrement : Bool;
+  };
+
+  // Persistent storage
   let players = Map.empty<Nat, Player>();
   let teams = Map.empty<Nat, Team>();
-  let teamRosters = Map.empty<Nat, [Nat]>();
   let userProfiles = Map.empty<Principal, UserProfile>();
-  let principalToTeam = Map.empty<Principal, Nat>();
+  let playerToTeam = Map.empty<Nat, Nat>();
+  let matches = Map.empty<Nat, Match>();
+  let auctions = Map.empty<Nat, AuctionState>();
 
-  // Persistent currentId for player and team management
+  // Persistent IDs
   var nextPlayerId = 1;
   var nextTeamId = 1;
+  var nextMatchId = 1;
 
-  // Authorization System Initialization
-  let accessControlState = AccessControl.initState();
-  include MixinAuthorization(accessControlState);
+  // Compare functions (now actor-local)
+  func comparePlayer(player1 : Player, player2 : Player) : Order.Order {
+    Nat.compare(player1.id, player2.id);
+  };
+  func compareTeam(team1 : Team, team2 : Team) : Order.Order {
+    Nat.compare(team1.id, team2.id);
+  };
+  func compareTeamBudget(budget1 : TeamBudget, budget2 : TeamBudget) : Order.Order {
+    Float.compare(budget1.remainingPurse, budget2.remainingPurse);
+  };
+  func compareMatch(match1 : Match, match2 : Match) : Order.Order {
+    Text.compare(match1.date, match2.date);
+  };
+
+  // Helper function to calculate remaining purse for a team
+  func calculateRemainingPurse(teamId : Nat) : Float {
+    switch (teams.get(teamId)) {
+      case (null) { 0.0 };
+      case (?team) {
+        let totalSpent = players.values().toArray().filter(
+          func(player) {
+            let assignedTeam = playerToTeam.get(player.id);
+            switch (assignedTeam) {
+              case (?tId) { tId == teamId };
+              case (null) { false };
+            };
+          }
+        ).foldLeft(
+          0.0,
+          func(acc, player) {
+            acc + player.basePrice;
+          },
+        );
+        team.totalPurse - totalSpent;
+      };
+    };
+  };
 
   // User Profile Management
   public query ({ caller }) func getCallerUserProfile() : async ?UserProfile {
@@ -87,38 +175,11 @@ actor {
       Runtime.trap("Unauthorized: Only users can save profiles");
     };
     userProfiles.add(caller, profile);
-
-    // Update principal to team mapping if teamId is set
-    switch (profile.teamId) {
-      case (?teamId) {
-        principalToTeam.add(caller, teamId);
-      };
-      case (null) {
-        principalToTeam.remove(caller);
-      };
-    };
   };
 
-  // Helper function to get team ID for a principal
-  private func getTeamIdForPrincipal(principal : Principal) : ?Nat {
-    principalToTeam.get(principal);
-  };
-
-  // Helper function to check if caller can access team data
-  private func canAccessTeamData(caller : Principal, teamId : Nat) : Bool {
-    if (AccessControl.isAdmin(accessControlState, caller)) {
-      return true;
-    };
-
-    switch (getTeamIdForPrincipal(caller)) {
-      case (?callerTeamId) { callerTeamId == teamId };
-      case (null) { false };
-    };
-  };
-
-  // Model Updates - Admin Only
+  // Model Updates - Admin only
   public shared ({ caller }) func createPlayer(name : Text, basePrice : Float) : async () {
-    if (not AccessControl.isAdmin(accessControlState, caller)) {
+    if (not (AccessControl.hasPermission(accessControlState, caller, #admin))) {
       Runtime.trap("Unauthorized: Only admins can create players");
     };
     let player = {
@@ -131,14 +192,12 @@ actor {
   };
 
   public shared ({ caller }) func updatePlayer(playerId : Nat, name : Text, basePrice : Float) : async () {
-    if (not AccessControl.isAdmin(accessControlState, caller)) {
+    if (not (AccessControl.hasPermission(accessControlState, caller, #admin))) {
       Runtime.trap("Unauthorized: Only admins can update players");
     };
-
     if (not players.containsKey(playerId)) {
       Runtime.trap("Player does not exist");
     };
-
     let updatedPlayer = {
       id = playerId;
       name;
@@ -148,30 +207,18 @@ actor {
   };
 
   public shared ({ caller }) func deletePlayer(playerId : Nat) : async () {
-    if (not AccessControl.isAdmin(accessControlState, caller)) {
+    if (not (AccessControl.hasPermission(accessControlState, caller, #admin))) {
       Runtime.trap("Unauthorized: Only admins can delete players");
     };
-
     if (not players.containsKey(playerId)) {
       Runtime.trap("Player does not exist");
     };
-
-    // Remove player from all team rosters
-    for (teamId in teamRosters.keys()) {
-      let roster = switch (teamRosters.get(teamId)) {
-        case (null) { [] };
-        case (?players) { players };
-      };
-
-      let filteredRoster = roster.filter(func(id) { id != playerId });
-      teamRosters.add(teamId, filteredRoster);
-    };
-
+    playerToTeam.remove(playerId);
     players.remove(playerId);
   };
 
   public shared ({ caller }) func createTeam(name : Text, totalPurse : Float) : async () {
-    if (not AccessControl.isAdmin(accessControlState, caller)) {
+    if (not (AccessControl.hasPermission(accessControlState, caller, #admin))) {
       Runtime.trap("Unauthorized: Only admins can create teams");
     };
     let team = {
@@ -180,72 +227,64 @@ actor {
       totalPurse;
     };
     teams.add(nextTeamId, team);
-    teamRosters.add(nextTeamId, []);
     nextTeamId += 1;
   };
 
-  // Auction Logic - Admin Only
   public shared ({ caller }) func addPlayerToTeam(playerId : Nat, teamId : Nat) : async () {
-    if (not AccessControl.isAdmin(accessControlState, caller)) {
-      Runtime.trap("Unauthorized: Only admins can assign players to teams");
+    if (not (AccessControl.hasPermission(accessControlState, caller, #admin))) {
+      Runtime.trap("Unauthorized: Only admins can add players to teams");
     };
-
     if (not players.containsKey(playerId)) {
       Runtime.trap("Player does not exist");
     };
     if (not teams.containsKey(teamId)) {
       Runtime.trap("Team does not exist");
     };
-
-    let roster = switch (teamRosters.get(teamId)) {
-      case (null) { [] };
-      case (?players) { players };
+    let currentTeam = playerToTeam.get(playerId);
+    switch (currentTeam) {
+      case (?existingTeam) {
+        if (existingTeam == teamId) {
+          Runtime.trap("Player already in this team");
+        };
+      };
+      case (null) {};
     };
-
-    if (roster.any(func(id) { id == playerId })) {
-      Runtime.trap("Player already in team");
-    };
-
-    let updatedRoster = roster.concat([playerId]);
-    teamRosters.add(teamId, updatedRoster);
+    playerToTeam.add(playerId, teamId);
   };
 
   public shared ({ caller }) func removePlayerFromTeam(playerId : Nat, teamId : Nat) : async () {
-    if (not AccessControl.isAdmin(accessControlState, caller)) {
+    if (not (AccessControl.hasPermission(accessControlState, caller, #admin))) {
       Runtime.trap("Unauthorized: Only admins can remove players from teams");
     };
-
     if (not players.containsKey(playerId)) {
       Runtime.trap("Player does not exist");
     };
     if (not teams.containsKey(teamId)) {
       Runtime.trap("Team does not exist");
     };
-
-    let roster = switch (teamRosters.get(teamId)) {
-      case (null) { [] };
-      case (?players) { players };
+    let currentTeam = playerToTeam.get(playerId);
+    switch (currentTeam) {
+      case (?existingTeam) {
+        if (existingTeam == teamId) {
+          playerToTeam.remove(playerId);
+        } else {
+          Runtime.trap("Player is not in the specified team");
+        };
+      };
+      case (null) {
+        Runtime.trap("Player is not assigned to any team");
+      };
     };
-
-    let filteredRoster = roster.filter(func(id) { id != playerId });
-
-    if (roster.size() == filteredRoster.size()) {
-      Runtime.trap("Player not in team");
-    };
-
-    teamRosters.add(teamId, filteredRoster);
   };
 
   public shared ({ caller }) func updateTeamPurse(teamId : Nat, newPurse : Float) : async () {
-    if (not AccessControl.isAdmin(accessControlState, caller)) {
+    if (not (AccessControl.hasPermission(accessControlState, caller, #admin))) {
       Runtime.trap("Unauthorized: Only admins can update team purse");
     };
-
     let team = switch (teams.get(teamId)) {
       case (null) { Runtime.trap("Team does not exist") };
       case (?t) { t };
     };
-
     let updatedTeam = {
       id = team.id;
       name = team.name;
@@ -254,68 +293,293 @@ actor {
     teams.add(teamId, updatedTeam);
   };
 
-  // Computation - Team users can view their own team, admins can view any team
   public query ({ caller }) func getRemainingTeamPurse(teamId : Nat) : async Float {
-    if (not canAccessTeamData(caller, teamId)) {
-      Runtime.trap("Unauthorized: Can only view your own team's data");
-    };
-
     switch (teams.get(teamId)) {
       case (null) { Runtime.trap("Team does not exist") };
       case (?team) {
-        let roster = switch (teamRosters.get(teamId)) {
-          case (null) { [] };
-          case (?players) { players };
-        };
-
-        let totalSpent = roster.foldLeft(
-          0.0,
-          func(acc, playerId) {
-            switch (players.get(playerId)) {
-              case (null) { acc };
-              case (?player) { acc + player.basePrice };
-            };
-          },
-        );
-
-        team.totalPurse - totalSpent;
+        calculateRemainingPurse(teamId);
       };
     };
   };
 
-  // Admin-only: View all team budgets
-  public query ({ caller }) func getAllTeamBudgets() : async [TeamBudget] {
-    if (not AccessControl.isAdmin(accessControlState, caller)) {
-      Runtime.trap("Unauthorized: Only admins can view all team budgets");
+  public shared ({ caller }) func createMatch(
+    homeTeamId : Nat,
+    awayTeamId : Nat,
+    homeTeamName : Text,
+    awayTeamName : Text,
+    date : Text,
+    location : Text,
+  ) : async Nat {
+    if (not (AccessControl.hasPermission(accessControlState, caller, #admin))) {
+      Runtime.trap("Unauthorized: Only admins can create matches");
+    };
+    if (homeTeamId == awayTeamId) {
+      Runtime.trap("A team cannot play against itself");
+    };
+    let match = {
+      homeTeamId;
+      awayTeamId;
+      homeTeamName;
+      awayTeamName;
+      homeTeamRuns = 0;
+      homeTeamWickets = 0;
+      awayTeamRuns = 0;
+      awayTeamWickets = 0;
+      date;
+      location;
+      batsmen = [];
+      bowlers = [];
+      fielders = [];
+      matchWinner = "";
+    };
+    let matchId = nextMatchId;
+    matches.add(matchId, match);
+    nextMatchId += 1;
+    matchId;
+  };
+
+  public query ({ caller }) func getAllMatches() : async [Match] {
+    matches.values().toArray().sort(
+      compareMatch
+    );
+  };
+
+  public query ({ caller }) func getMatchById(matchId : Nat) : async ?Match {
+    matches.get(matchId);
+  };
+
+  public shared ({ caller }) func addBatsmanPerformance(matchId : Nat, performance : BatsmanPerformance) : async () {
+    if (not (AccessControl.hasPermission(accessControlState, caller, #admin))) {
+      Runtime.trap("Unauthorized: Only admins can add batsman performance");
+    };
+    switch (matches.get(matchId)) {
+      case (null) { Runtime.trap("Match with given ID does not exist") };
+      case (?match) {
+        let batsmanArray = match.batsmen.concat([performance]);
+        let updatedMatch = {
+          match with
+          batsmen = batsmanArray;
+        };
+        matches.add(matchId, updatedMatch);
+      };
+    };
+  };
+
+  public shared ({ caller }) func addBowlerPerformance(matchId : Nat, performance : BowlerPerformance) : async () {
+    if (not (AccessControl.hasPermission(accessControlState, caller, #admin))) {
+      Runtime.trap("Unauthorized: Only admins can add bowler performance");
+    };
+    switch (matches.get(matchId)) {
+      case (null) { Runtime.trap("Match with given ID does not exist") };
+      case (?match) {
+        let bowlerArray = match.bowlers.concat([performance]);
+        let updatedMatch = {
+          match with
+          bowlers = bowlerArray;
+        };
+        matches.add(matchId, updatedMatch);
+      };
+    };
+  };
+
+  public shared ({ caller }) func addFielderPerformance(matchId : Nat, performance : FielderPerformance) : async () {
+    if (not (AccessControl.hasPermission(accessControlState, caller, #admin))) {
+      Runtime.trap("Unauthorized: Only admins can add fielder performance");
+    };
+    switch (matches.get(matchId)) {
+      case (null) { Runtime.trap("Match with given ID does not exist") };
+      case (?match) {
+        let fielderArray = match.fielders.concat([performance]);
+        let updatedMatch = {
+          match with
+          fielders = fielderArray;
+        };
+        matches.add(matchId, updatedMatch);
+      };
+    };
+  };
+
+  public shared ({ caller }) func updateMatchResults(
+    matchId : Nat,
+    homeTeamRuns : Nat,
+    homeTeamWickets : Nat,
+    awayTeamRuns : Nat,
+    awayTeamWickets : Nat,
+    matchWinner : Text,
+  ) : async () {
+    if (not (AccessControl.hasPermission(accessControlState, caller, #admin))) {
+      Runtime.trap("Unauthorized: Only admins can update match results");
+    };
+    switch (matches.get(matchId)) {
+      case (null) { Runtime.trap("Match with given ID does not exist") };
+      case (?match) {
+        let updatedMatch = {
+          match with
+          homeTeamRuns;
+          homeTeamWickets;
+          awayTeamRuns;
+          awayTeamWickets;
+          matchWinner;
+        };
+        matches.add(matchId, updatedMatch);
+      };
+    };
+  };
+
+  // Auction Logic
+  public shared ({ caller }) func startAuction(playerId : Nat, startingBid : Float, fixedIncrement : Bool) : async () {
+    if (not (AccessControl.hasPermission(accessControlState, caller, #admin))) {
+      Runtime.trap("Unauthorized: Only admins can start auctions");
+    };
+    if (not players.containsKey(playerId)) {
+      Runtime.trap("Player does not exist");
     };
 
-    teams.keys().toArray().map(
-      func(teamId) {
-        let remainingPurse = switch (teams.get(teamId)) {
-          case (null) { 0.0 };
-          case (?_) {
-            let roster = switch (teamRosters.get(teamId)) {
-              case (null) { [] };
-              case (?players) { players };
+    if (auctions.containsKey(playerId)) {
+      Runtime.trap("Auction for this player already exists");
+    };
+
+    let newAuction : AuctionState = {
+      playerId;
+      startingBid;
+      highestBid = startingBid;
+      highestBidTeamId = null;
+      isFinalized = false;
+      fixedIncrement;
+    };
+
+    auctions.add(playerId, newAuction);
+  };
+
+  public shared ({ caller }) func placeBid(playerId : Nat, teamId : Nat, bidAmount : Float) : async () {
+    if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
+      Runtime.trap("Unauthorized: Only users can place bids");
+    };
+
+    // Verify the caller is associated with the team they're bidding for
+    switch (userProfiles.get(caller)) {
+      case (null) {
+        Runtime.trap("User profile not found. Please create a profile first");
+      };
+      case (?profile) {
+        switch (profile.teamId) {
+          case (null) {
+            Runtime.trap("User is not associated with any team");
+          };
+          case (?userTeamId) {
+            if (userTeamId != teamId) {
+              Runtime.trap("User can only place bids for their own team");
             };
+          };
+        };
+      };
+    };
 
-            let totalSpent = roster.foldLeft(
-              0.0,
-              func(acc, playerId) {
-                switch (players.get(playerId)) {
-                  case (null) { acc };
-                  case (?player) { acc + player.basePrice };
-                };
-              },
-            );
+    // Validate player and team existence
+    if (not players.containsKey(playerId)) {
+      Runtime.trap("Player does not exist");
+    };
+    if (not teams.containsKey(teamId)) {
+      Runtime.trap("Team does not exist");
+    };
 
-            switch (teams.get(teamId)) {
-              case (null) { 0.0 };
-              case (?team) { team.totalPurse - totalSpent };
+    // Check if team has sufficient budget
+    let remainingPurse = calculateRemainingPurse(teamId);
+    if (bidAmount > remainingPurse) {
+      Runtime.trap("Insufficient team budget for this bid");
+    };
+
+    // Validate auction existence and state
+    switch (auctions.get(playerId)) {
+      case (null) {
+        Runtime.trap("Auction does not exist");
+      };
+      case (?auctionState) {
+        if (auctionState.isFinalized) {
+          Runtime.trap("Auction is finalized, you cannot bid");
+        };
+
+        if (bidAmount <= auctionState.highestBid) {
+          Runtime.trap("Bid is not higher than the current highest bid");
+        };
+
+        // Check the fixed increment scenario
+        if (auctionState.fixedIncrement and not Float.equal(bidAmount, auctionState.highestBid + 0.2, 0.000_01)) {
+          Runtime.trap("Bid must be exactly 0.2 Cr higher than current bid.");
+        };
+
+        // Update the auction state
+        let updatedAuction = {
+          auctionState with
+          highestBid = bidAmount;
+          highestBidTeamId = ?teamId;
+        };
+
+        auctions.add(playerId, updatedAuction);
+      };
+    };
+  };
+
+  public shared ({ caller }) func finalizeAuction(playerId : Nat) : async () {
+    if (not (AccessControl.hasPermission(accessControlState, caller, #admin))) {
+      Runtime.trap("Unauthorized: Only admins can finalize auctions");
+    };
+    // Validate auction existence
+    switch (auctions.get(playerId)) {
+      case (null) {
+        Runtime.trap("Auction does not exist");
+      };
+      case (?auctionState) {
+        if (auctionState.isFinalized) {
+          Runtime.trap("Auction is already finalized");
+        };
+
+        // Verify winning team has sufficient budget before finalizing
+        switch (auctionState.highestBidTeamId) {
+          case (null) {};
+          case (?teamId) {
+            let remainingPurse = calculateRemainingPurse(teamId);
+            if (auctionState.highestBid > remainingPurse) {
+              Runtime.trap("Winning team has insufficient budget to finalize auction");
             };
           };
         };
 
+        let finalizedAuction = {
+          auctionState with
+          isFinalized = true;
+        };
+
+        auctions.add(playerId, finalizedAuction);
+
+        // Assign player to winning team if there is one
+        switch (auctionState.highestBidTeamId) {
+          case (null) {};
+          case (?teamId) {
+            playerToTeam.add(playerId, teamId);
+          };
+        };
+      };
+    };
+  };
+
+  public query ({ caller }) func getAuctionState(playerId : Nat) : async ?AuctionState {
+    auctions.get(playerId);
+  };
+
+  // Queries to fetch all players, teams, team budgets, team assignments, and players in a team
+  public query ({ caller }) func getAllPlayers() : async [Player] {
+    players.values().toArray();
+  };
+
+  public query ({ caller }) func getAllTeams() : async [Team] {
+    teams.values().toArray();
+  };
+
+  public query ({ caller }) func getAllTeamBudgets() : async [TeamBudget] {
+    teams.keys().toArray().map(
+      func(teamId) {
+        let remainingPurse = calculateRemainingPurse(teamId);
         let team = switch (teams.get(teamId)) {
           case (null) { Runtime.trap("Team does not exist") };
           case (?t) { t };
@@ -325,63 +589,34 @@ actor {
           remainingPurse;
         };
       }
-    ).sort();
+    ).sort(
+      compareTeamBudget
+    );
   };
 
-  // Query - Team users can view their own roster, admins can view any roster
-  public query ({ caller }) func getPlayersForTeam(teamId : Nat) : async [Player] {
-    if (not canAccessTeamData(caller, teamId)) {
-      Runtime.trap("Unauthorized: Can only view your own team's roster");
-    };
+  public query ({ caller }) func getPlayerTeamAssignments() : async [(Nat, ?Nat)] {
+    players.keys().toArray().map(
+      func(playerId) {
+        let teamId = playerToTeam.get(playerId);
+        (playerId, teamId);
+      }
+    );
+  };
 
+  public query ({ caller }) func getPlayersForTeam(teamId : Nat) : async [Player] {
     switch (teams.get(teamId)) {
       case (null) { Runtime.trap("Team does not exist") };
       case (?_) {
-        let playerIds = switch (teamRosters.get(teamId)) {
-          case (null) { [] };
-          case (?players) { players };
-        };
-
-        playerIds.map(
-          func(playerId) {
-            switch (players.get(playerId)) {
-              case (null) { Runtime.trap("Player not found") };
-              case (?player) { player };
+        players.values().toArray().filter(
+          func(player) {
+            let assignedTeam = playerToTeam.get(player.id);
+            switch (assignedTeam) {
+              case (?tId) { tId == teamId };
+              case (null) { false };
             };
           }
         );
       };
     };
-  };
-
-  // Admin-only: Get all players
-  public query ({ caller }) func getAllPlayers() : async [Player] {
-    if (not AccessControl.isAdmin(accessControlState, caller)) {
-      Runtime.trap("Unauthorized: Only admins can view all players");
-    };
-
-    players.values().toArray();
-  };
-
-  // Admin-only: Get all teams
-  public query ({ caller }) func getAllTeams() : async [Team] {
-    if (not AccessControl.isAdmin(accessControlState, caller)) {
-      Runtime.trap("Unauthorized: Only admins can view all teams");
-    };
-
-    teams.values().toArray();
-  };
-
-  // Admin-only: Associate a principal with a team
-  public shared ({ caller }) func assignPrincipalToTeam(principal : Principal, teamId : Nat) : async () {
-    if (not AccessControl.isAdmin(accessControlState, caller)) {
-      Runtime.trap("Unauthorized: Only admins can assign principals to teams");
-    };
-
-    if (not teams.containsKey(teamId)) {
-      Runtime.trap("Team does not exist");
-    };
-
-    principalToTeam.add(principal, teamId);
   };
 };

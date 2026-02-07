@@ -1,48 +1,34 @@
 {
   "schemaVersion": "1.0.0",
-  "projectStateVersion": 5,
-  "summary": "Website for a cricket tournament player auction with 4 team logins and an admin login; admin can create/manage players with base prices, name teams, and configure each team’s purse (in crores); teams can view player list, their purchased players, and remaining purse.",
-  "architectural_notes": [],
+  "projectStateVersion": 3,
+  "summary": "Auction app: teams view shows players; add auction bidding controls and enhancements.",
+  "architectural_notes": [
+    "Support configurable bid increment (e.g., 0.2cr) applied on each bid after auction start."
+  ],
   "known_issues": [],
   "isFixRequest": false,
   "existing_features": [
     {
-      "id": "feature-implement-application-authentication-with-exactly-5-roles-accounts-4-team-accounts-and-1-admin-account-each-using-a-username-id-and-password-to-log-in",
-      "title": "Implement application authentication with exactly 5 roles/accounts: 4 team accounts and 1 admin account, each using a username (ID) and password to log in.",
+      "id": "feature-add-an-auction-setting-that-can-be-enabled-when-an-admin-starts-an-auction-to-enforce-a-fixed-bid-increment-of-0-2-cr-for-every-bid-placed-after-the-auction-starts",
+      "title": "Add an auction setting that can be enabled when an admin starts an auction to enforce a fixed bid increment of 0.2 Cr for every bid placed after the auction starts.",
       "reqIds": [
         "REQ-1"
       ],
       "version": 1
     },
     {
-      "id": "feature-after-team-login-show-a-team-dashboard-where-the-team-can-view-a-the-full-list-of-players-with-their-base-prices-b-the-team-s-own-player-list-roster-and-c-the-team-s-remaining-purse",
-      "title": "After team login, show a Team Dashboard where the team can view (a) the full list of players with their base prices, (b) the team’s own player list (roster), and (c) the team’s remaining purse.",
+      "id": "feature-update-the-auction-dialog-ui-to-support-the-fixed-0-2-cr-bidding-flow-including-start-auction-controls-and-bid-input-behavior",
+      "title": "Update the auction dialog UI to support the fixed +0.2 Cr bidding flow, including start-auction controls and bid input behavior.",
       "reqIds": [
         "REQ-3"
       ],
       "version": 1
     },
     {
-      "id": "feature-provide-an-admin-dashboard-that-allows-the-admin-to-manage-auction-data-needed-for-the-team-views-create-edit-delete-players-including-base-price-and-configure-each-team-s-total-purse-admin-can-assign-unassign-players-to-teams-to-build-rosters",
-      "title": "Provide an Admin Dashboard that allows the admin to manage auction data needed for the team views: create/edit/delete players (including base price) and configure each team’s total purse; admin can assign/unassign players to teams to build rosters.",
+      "id": "feature-update-frontend-react-query-hooks-and-generated-backend-types-interfaces-to-support-the-new-auction-start-parameters-and-the-extended-auction-state",
+      "title": "Update frontend React Query hooks and generated backend types/interfaces to support the new auction start parameters and the extended auction state.",
       "reqIds": [
-        "REQ-5"
-      ],
-      "version": 1
-    },
-    {
-      "id": "feature-add-basic-navigation-and-routing-for-login-team-dashboard-team-specific-and-admin-dashboard-route-access-must-be-role-gated-admin-only-vs-team-only",
-      "title": "Add basic navigation and routing for: Login, Team Dashboard (team-specific), and Admin Dashboard; route access must be role-gated (admin-only vs team-only).",
-      "reqIds": [
-        "REQ-6"
-      ],
-      "version": 1
-    },
-    {
-      "id": "feature-apply-a-cohesive-cricket-auction-themed-visual-design-across-the-app-colors-typography-spacing-layout-using-tailwind-and-existing-ui-components-avoid-blue-purple-as-primary-brand-colors",
-      "title": "Apply a cohesive, cricket-auction-themed visual design across the app (colors, typography, spacing, layout) using Tailwind and existing UI components; avoid blue/purple as primary brand colors.",
-      "reqIds": [
-        "REQ-7"
+        "REQ-4"
       ],
       "version": 1
     }
@@ -50,59 +36,20 @@
   "new_feature_requests": [
     {
       "id": "AR-1",
-      "summary": "Role-based authentication with separate logins for 4 teams and 1 admin",
-      "reqIds": [],
-      "status": "pending"
-    },
-    {
-      "id": "AR-2",
-      "summary": "After login, teams can view the full list of players with their base price",
+      "summary": "Add an option so that once the auction starts, each team bid increases the bidding amount by 0.2cr (fixed increment per bid).",
       "reqIds": [],
       "status": "pending"
     },
     {
       "id": "AR-3",
-      "summary": "Each team account can view its own players list (team roster)",
-      "reqIds": [],
-      "status": "pending"
-    },
-    {
-      "id": "AR-4",
-      "summary": "Each team account can view its remaining purse/budget",
-      "reqIds": [],
-      "status": "pending"
-    },
-    {
-      "id": "AR-6",
-      "summary": "Create backend data models and stable storage for: teams (4 teams), admin account, players (with base price), and team rosters (which players belong to which team), including each team’s purse budget configuration.",
+      "summary": "Enforce the fixed +0.2 Cr increment rule in the backend bidding logic so invalid bid amounts are rejected server-side.",
       "reqIds": [
         "REQ-2"
       ],
       "status": "pending"
-    },
-    {
-      "id": "AR-8",
-      "summary": "Compute and expose remaining purse per team as: teamTotalPurse minus the sum of base prices of players assigned to that team; ensure the Team Dashboard shows the computed value.",
-      "reqIds": [
-        "REQ-4"
-      ],
-      "status": "pending"
-    },
-    {
-      "id": "AR-9",
-      "summary": "Provide defined login IDs/usernames and passwords for the 4 team accounts and 1 admin account (initial credentials for use in the app)",
-      "reqIds": [],
-      "status": "pending"
-    },
-    {
-      "id": "AR-10",
-      "summary": "Admin can name/rename the 4 teams and set each team’s purse using units in crores (₹ Cr)",
-      "reqIds": [],
-      "status": "pending"
     }
   ],
-  "gameProjectType": "none",
-  "projectName": "Cricket tournament player auction site with 4 team logins + admin, player list, rosters, and purse tracking",
+  "projectName": "Add optional fixed +0.2 Cr bid increment for auctions",
   "clarification_mode": "instant",
   "clarification_rounds": 0
 }

@@ -29,9 +29,9 @@ export default function ProfileSetupModal() {
     <Dialog open={true}>
       <DialogContent className="sm:max-w-md" onInteractOutside={(e) => e.preventDefault()}>
         <DialogHeader>
-          <DialogTitle>Welcome to Cricket Auction</DialogTitle>
+          <DialogTitle>Personalize Your Experience</DialogTitle>
           <DialogDescription>
-            Please enter your name to complete your profile setup
+            Enter your name to save your profile and get personalized features (optional)
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -46,7 +46,7 @@ export default function ProfileSetupModal() {
             />
           </div>
           <Button type="submit" className="w-full" disabled={saveProfile.isPending}>
-            {saveProfile.isPending ? 'Creating Profile...' : 'Continue'}
+            {saveProfile.isPending ? 'Saving Profile...' : 'Save Profile'}
           </Button>
         </form>
       </DialogContent>

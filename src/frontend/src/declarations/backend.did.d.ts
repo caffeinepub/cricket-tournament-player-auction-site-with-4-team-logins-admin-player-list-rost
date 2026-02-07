@@ -10,6 +10,52 @@ import type { ActorMethod } from '@icp-sdk/core/agent';
 import type { IDL } from '@icp-sdk/core/candid';
 import type { Principal } from '@icp-sdk/core/principal';
 
+export interface AuctionState {
+  'playerId' : bigint,
+  'highestBid' : number,
+  'isFinalized' : boolean,
+  'highestBidTeamId' : [] | [bigint],
+  'fixedIncrement' : boolean,
+  'startingBid' : number,
+}
+export interface BatsmanPerformance {
+  'fours' : bigint,
+  'playerId' : bigint,
+  'runs' : bigint,
+  'sixes' : bigint,
+  'innings' : bigint,
+  'ballsFaced' : bigint,
+}
+export interface BowlerPerformance {
+  'maidens' : bigint,
+  'overs' : number,
+  'playerId' : bigint,
+  'wickets' : bigint,
+  'ballsBowled' : bigint,
+  'runsConceded' : bigint,
+}
+export interface FielderPerformance {
+  'stumpings' : bigint,
+  'playerId' : bigint,
+  'dismissals' : bigint,
+  'catches' : bigint,
+}
+export interface Match {
+  'bowlers' : Array<BowlerPerformance>,
+  'awayTeamId' : bigint,
+  'date' : string,
+  'awayTeamWickets' : bigint,
+  'awayTeamName' : string,
+  'awayTeamRuns' : bigint,
+  'homeTeamId' : bigint,
+  'homeTeamWickets' : bigint,
+  'homeTeamName' : string,
+  'homeTeamRuns' : bigint,
+  'fielders' : Array<FielderPerformance>,
+  'batsmen' : Array<BatsmanPerformance>,
+  'matchWinner' : string,
+  'location' : string,
+}
 export interface Player { 'id' : bigint, 'name' : string, 'basePrice' : number }
 export interface Team { 'id' : bigint, 'name' : string, 'totalPurse' : number }
 export interface TeamBudget { 'team' : Team, 'remainingPurse' : number }
@@ -19,23 +65,46 @@ export type UserRole = { 'admin' : null } |
   { 'guest' : null };
 export interface _SERVICE {
   '_initializeAccessControlWithSecret' : ActorMethod<[string], undefined>,
+  'addBatsmanPerformance' : ActorMethod<
+    [bigint, BatsmanPerformance],
+    undefined
+  >,
+  'addBowlerPerformance' : ActorMethod<[bigint, BowlerPerformance], undefined>,
+  'addFielderPerformance' : ActorMethod<
+    [bigint, FielderPerformance],
+    undefined
+  >,
   'addPlayerToTeam' : ActorMethod<[bigint, bigint], undefined>,
   'assignCallerUserRole' : ActorMethod<[Principal, UserRole], undefined>,
-  'assignPrincipalToTeam' : ActorMethod<[Principal, bigint], undefined>,
+  'createMatch' : ActorMethod<
+    [bigint, bigint, string, string, string, string],
+    bigint
+  >,
   'createPlayer' : ActorMethod<[string, number], undefined>,
   'createTeam' : ActorMethod<[string, number], undefined>,
   'deletePlayer' : ActorMethod<[bigint], undefined>,
+  'finalizeAuction' : ActorMethod<[bigint], undefined>,
+  'getAllMatches' : ActorMethod<[], Array<Match>>,
   'getAllPlayers' : ActorMethod<[], Array<Player>>,
   'getAllTeamBudgets' : ActorMethod<[], Array<TeamBudget>>,
   'getAllTeams' : ActorMethod<[], Array<Team>>,
+  'getAuctionState' : ActorMethod<[bigint], [] | [AuctionState]>,
   'getCallerUserProfile' : ActorMethod<[], [] | [UserProfile]>,
   'getCallerUserRole' : ActorMethod<[], UserRole>,
+  'getMatchById' : ActorMethod<[bigint], [] | [Match]>,
+  'getPlayerTeamAssignments' : ActorMethod<[], Array<[bigint, [] | [bigint]]>>,
   'getPlayersForTeam' : ActorMethod<[bigint], Array<Player>>,
   'getRemainingTeamPurse' : ActorMethod<[bigint], number>,
   'getUserProfile' : ActorMethod<[Principal], [] | [UserProfile]>,
   'isCallerAdmin' : ActorMethod<[], boolean>,
+  'placeBid' : ActorMethod<[bigint, bigint, number], undefined>,
   'removePlayerFromTeam' : ActorMethod<[bigint, bigint], undefined>,
   'saveCallerUserProfile' : ActorMethod<[UserProfile], undefined>,
+  'startAuction' : ActorMethod<[bigint, number, boolean], undefined>,
+  'updateMatchResults' : ActorMethod<
+    [bigint, bigint, bigint, bigint, bigint, string],
+    undefined
+  >,
   'updatePlayer' : ActorMethod<[bigint, string, number], undefined>,
   'updateTeamPurse' : ActorMethod<[bigint, number], undefined>,
 }

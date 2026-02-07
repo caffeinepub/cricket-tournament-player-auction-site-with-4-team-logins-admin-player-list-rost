@@ -1,19 +1,32 @@
 import { useInternetIdentity } from '../hooks/useInternetIdentity';
 import { useQueryClient } from '@tanstack/react-query';
+import { useNavigate } from '@tanstack/react-router';
 import { Button } from '@/components/ui/button';
-import { Shield, LogOut } from 'lucide-react';
+import { Shield, LogOut, LogIn, Home } from 'lucide-react';
 
 interface AdminHeaderProps {
   adminName: string;
 }
 
 export default function AdminHeader({ adminName }: AdminHeaderProps) {
-  const { clear } = useInternetIdentity();
+  const { clear, login, identity, loginStatus } = useInternetIdentity();
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
+
+  const isAuthenticated = !!identity;
+  const isLoggingIn = loginStatus === 'logging-in';
 
   const handleLogout = async () => {
     await clear();
     queryClient.clear();
+  };
+
+  const handleLogin = async () => {
+    try {
+      await login();
+    } catch (error) {
+      console.error('Login error:', error);
+    }
   };
 
   return (
@@ -30,14 +43,36 @@ export default function AdminHeader({ adminName }: AdminHeaderProps) {
             </div>
           </div>
 
-          <Button
-            onClick={handleLogout}
-            variant="outline"
-            className="bg-white/10 backdrop-blur-sm border-white/20 text-white hover:bg-white/20 hover:text-white"
-          >
-            <LogOut className="w-4 h-4 mr-2" />
-            Logout
-          </Button>
+          <div className="flex items-center gap-3">
+            <Button
+              onClick={() => navigate({ to: '/' })}
+              variant="outline"
+              className="bg-white/10 backdrop-blur-sm border-white/20 text-white hover:bg-white/20 hover:text-white"
+            >
+              <Home className="w-4 h-4 mr-2" />
+              Home
+            </Button>
+            {isAuthenticated ? (
+              <Button
+                onClick={handleLogout}
+                variant="outline"
+                className="bg-white/10 backdrop-blur-sm border-white/20 text-white hover:bg-white/20 hover:text-white"
+              >
+                <LogOut className="w-4 h-4 mr-2" />
+                Logout
+              </Button>
+            ) : (
+              <Button
+                onClick={handleLogin}
+                disabled={isLoggingIn}
+                variant="outline"
+                className="bg-white/10 backdrop-blur-sm border-white/20 text-white hover:bg-white/20 hover:text-white"
+              >
+                <LogIn className="w-4 h-4 mr-2" />
+                {isLoggingIn ? 'Signing in...' : 'Sign In'}
+              </Button>
+            )}
+          </div>
         </div>
       </div>
     </header>

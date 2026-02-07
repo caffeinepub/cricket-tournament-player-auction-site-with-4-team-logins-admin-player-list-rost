@@ -1,26 +1,74 @@
 {
   "kind": "coverage_report",
   "version": "1.0",
-  "generatedAt": "2026-02-06T02:19:30.047Z",
+  "generatedAt": "2026-02-07T08:08:04.714Z",
   "sources": {
     "buildRequest": true,
     "implementationPlan": true
   },
   "requirements": {
-    "total": 0,
-    "implemented": 0,
-    "items": []
+    "total": 4,
+    "implemented": 3,
+    "items": [
+      {
+        "id": "REQ-1",
+        "summary": "Add an auction setting that can be enabled when an admin starts an auction to enforce a fixed bid increment of 0.2 Cr for every bid placed after the auction starts.",
+        "status": "implemented",
+        "plannedFiles": [
+          "frontend/src/components/PlayerAuctionDialog.tsx",
+          "frontend/src/hooks/useQueries.ts"
+        ],
+        "matchedFiles": [
+          "frontend/src/components/PlayerAuctionDialog.tsx",
+          "frontend/src/hooks/useQueries.ts"
+        ]
+      },
+      {
+        "id": "REQ-2",
+        "summary": "Enforce the fixed +0.2 Cr increment rule in the backend bidding logic so invalid bid amounts are rejected server-side.",
+        "status": "unknown",
+        "plannedFiles": [],
+        "matchedFiles": []
+      },
+      {
+        "id": "REQ-3",
+        "summary": "Update the auction dialog UI to support the fixed +0.2 Cr bidding flow, including start-auction controls and bid input behavior.",
+        "status": "implemented",
+        "plannedFiles": [
+          "frontend/src/components/PlayerAuctionDialog.tsx"
+        ],
+        "matchedFiles": [
+          "frontend/src/components/PlayerAuctionDialog.tsx"
+        ]
+      },
+      {
+        "id": "REQ-4",
+        "summary": "Update frontend React Query hooks and generated backend types/interfaces to support the new auction start parameters and the extended auction state.",
+        "status": "implemented",
+        "plannedFiles": [
+          "frontend/src/hooks/useQueries.ts",
+          "frontend/src/backend.d.ts"
+        ],
+        "matchedFiles": [
+          "frontend/src/hooks/useQueries.ts",
+          "frontend/src/backend.d.ts"
+        ]
+      }
+    ]
   },
   "changedFiles": [
+    "backend/main.mo",
+    "backend/migration.mo",
     "build-request.json",
-    "build-template/README.md",
     "feature_evidence.json",
     "frontend-file-summaries.txt",
     "frontend-implementation-plan.json",
-    "frontend/src/components/PlayerManagement.tsx",
-    "frontend/src/components/TeamHeader.tsx",
-    "frontend/src/components/TeamManagement.tsx",
-    "frontend/src/pages/TeamDashboardPage.tsx",
+    "frontend/src/backend.d.ts",
+    "frontend/src/backend.ts",
+    "frontend/src/components/PlayerAuctionDialog.tsx",
+    "frontend/src/declarations/backend.did.d.ts",
+    "frontend/src/declarations/backend.did.js",
+    "frontend/src/hooks/useQueries.ts",
     "project_state.json",
     "scratch/component-selection.json",
     "spec.md",

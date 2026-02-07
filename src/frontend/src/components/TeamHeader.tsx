@@ -2,7 +2,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from '@tanstack/react-router';
 import { useInternetIdentity } from '../hooks/useInternetIdentity';
 import { Button } from '@/components/ui/button';
-import { LogOut, Trophy } from 'lucide-react';
+import { LogOut, LogIn, Trophy, Home } from 'lucide-react';
 
 interface TeamHeaderProps {
   teamName: string;
@@ -10,14 +10,24 @@ interface TeamHeaderProps {
 }
 
 export default function TeamHeader({ teamName, remainingPurse }: TeamHeaderProps) {
-  const { clear } = useInternetIdentity();
+  const { clear, login, identity, loginStatus } = useInternetIdentity();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+
+  const isAuthenticated = !!identity;
+  const isLoggingIn = loginStatus === 'logging-in';
 
   const handleLogout = async () => {
     await clear();
     queryClient.clear();
-    navigate({ to: '/' });
+  };
+
+  const handleLogin = async () => {
+    try {
+      await login();
+    } catch (error) {
+      console.error('Login error:', error);
+    }
   };
 
   return (
@@ -35,14 +45,36 @@ export default function TeamHeader({ teamName, remainingPurse }: TeamHeaderProps
               </p>
             </div>
           </div>
-          <Button
-            onClick={handleLogout}
-            variant="outline"
-            className="bg-white/10 border-white/20 text-white hover:bg-white/20 hover:text-white"
-          >
-            <LogOut className="w-4 h-4 mr-2" />
-            Logout
-          </Button>
+          <div className="flex items-center gap-3">
+            <Button
+              onClick={() => navigate({ to: '/' })}
+              variant="outline"
+              className="bg-white/10 border-white/20 text-white hover:bg-white/20 hover:text-white"
+            >
+              <Home className="w-4 h-4 mr-2" />
+              Home
+            </Button>
+            {isAuthenticated ? (
+              <Button
+                onClick={handleLogout}
+                variant="outline"
+                className="bg-white/10 border-white/20 text-white hover:bg-white/20 hover:text-white"
+              >
+                <LogOut className="w-4 h-4 mr-2" />
+                Logout
+              </Button>
+            ) : (
+              <Button
+                onClick={handleLogin}
+                disabled={isLoggingIn}
+                variant="outline"
+                className="bg-white/10 border-white/20 text-white hover:bg-white/20 hover:text-white"
+              >
+                <LogIn className="w-4 h-4 mr-2" />
+                {isLoggingIn ? 'Sign In' : 'Sign In'}
+              </Button>
+            )}
+          </div>
         </div>
       </div>
     </header>

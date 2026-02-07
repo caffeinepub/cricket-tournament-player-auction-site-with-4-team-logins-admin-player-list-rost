@@ -11,6 +11,7 @@ import { Separator } from '@/components/ui/separator';
 import { Plus, DollarSign, Users, UserPlus, UserMinus } from 'lucide-react';
 import { toast } from 'sonner';
 import { Skeleton } from '@/components/ui/skeleton';
+import TeamBoughtPlayersSection from './TeamBoughtPlayersSection';
 
 export default function TeamManagement() {
   const { data: teams, isLoading: teamsLoading } = useGetAllTeams();
@@ -180,7 +181,7 @@ export default function TeamManagement() {
         <CardContent>
           {teamsLoading || budgetsLoading ? (
             <div className="space-y-4">
-              {[1, 2, 3, 4].map(i => <Skeleton key={i} className="h-24 w-full" />)}
+              {[1, 2, 3, 4].map(i => <Skeleton key={i} className="h-32 w-full" />)}
             </div>
           ) : teamBudgets && teamBudgets.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -211,6 +212,8 @@ export default function TeamManagement() {
                       <DollarSign className="w-4 h-4 mr-2" />
                       Update Purse
                     </Button>
+                    
+                    <TeamBoughtPlayersSection teamId={budget.team.id} />
                   </CardContent>
                 </Card>
               ))}

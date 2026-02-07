@@ -1,67 +1,53 @@
 {
   "kind": "spec_vs_diff_report",
   "version": "1.0",
-  "generatedAt": "2026-02-06T02:19:30.045Z",
-  "summary": "BuildRequest specifies no requirements or acceptance criteria, but the diff shows multiple functional and UI changes across player/team management, dashboards, routing/auth flows, and styling.",
-  "missing_requirements": [],
-  "hallucinated_features": [
+  "generatedAt": "2026-02-07T08:08:04.712Z",
+  "summary": "Diff introduces an AuctionState.fixedIncrement boolean (plus a migration defaulting it to false) and frontend dialog logic that passes a fixedIncrement flag on start and uses 0.2 vs 0.5 increments based on auctionState.fixedIncrement. However, the diff summary does not provide evidence that the backend startAuction/bid logic is updated to store/enforce the fixed +0.2 rule, nor that candid/TS bindings were regenerated to include the new field/parameter.",
+  "missing_requirements": [
     {
-      "description": "Implemented/updated Player Management admin UI with CRUD operations (create/edit/delete players), dialogs, toast notifications, and currency display formatting.",
-      "reason": "No requirements were specified in the BuildRequest, so any functional implementation is unrequested relative to the provided source of truth.",
+      "id": "REQ-1",
+      "requirement": "Admin can choose fixed increment mode when starting an auction; if enabled, 0.2 Cr increment is stored as part of auction state; if not enabled, bidding works as today.",
+      "reason": "While AuctionState now includes fixedIncrement and the frontend passes fixedIncrement to startAuction, the backend startAuction implementation that persists this setting is not shown in the truncated backend/main.mo diff summary, so there is no clear evidence that the setting is actually stored/used server-side.",
       "evidence": [
-        "frontend/src/components/PlayerManagement.tsx",
-        "frontend-file-summaries.txt"
+        "backend/main.mo",
+        "frontend/src/components/PlayerAuctionDialog.tsx"
       ]
     },
     {
-      "description": "Implemented/updated Team Management admin UI including creating teams, updating team purse, and assigning/removing players to/from teams.",
-      "reason": "No requirements were specified in the BuildRequest.",
+      "id": "REQ-2",
+      "requirement": "Backend enforces fixed +0.2 Cr rule (exactly highestBid + 0.2 within tolerance), returns a clear English error message for invalid increment bids, preserves existing auth checks, and preserves existing >highestBid behavior when fixed increment is disabled.",
+      "reason": "The diff summary does not show any changes to the backend bidding logic (e.g., placeBid) implementing exact +0.2 enforcement, tolerance handling, or specific error messages. Only the type change and migration are visible.",
       "evidence": [
-        "frontend/src/components/TeamManagement.tsx",
-        "frontend-file-summaries.txt"
+        "backend/main.mo"
       ]
     },
     {
-      "description": "Implemented/updated Team Dashboard page with authentication/role redirection logic and stats/cards/tabs UI (total purse, remaining purse, squad size, player lists).",
-      "reason": "No requirements were specified in the BuildRequest.",
+      "id": "REQ-4",
+      "requirement": "Update React Query hooks and generated backend types/interfaces so startAuction can pass the fixed-increment option and AuctionState includes the configuration; TS compiles with updated candid bindings.",
+      "reason": "Although the UI code references AuctionState.fixedIncrement and passes fixedIncrement to startAuction, the diff summary does not include evidence of updated generated candid bindings/types (e.g., the '../backend' declarations) or the specific hook/mutation signature changes (useQueries.ts is truncated and the generated types file is not shown).",
       "evidence": [
-        "frontend/src/pages/TeamDashboardPage.tsx",
-        "frontend-file-summaries.txt"
-      ]
-    },
-    {
-      "description": "Added/updated TeamHeader component with logout behavior (clearing identity and React Query cache) and remaining purse display.",
-      "reason": "No requirements were specified in the BuildRequest.",
-      "evidence": [
-        "frontend/src/components/TeamHeader.tsx",
-        "frontend-file-summaries.txt"
-      ]
-    },
-    {
-      "description": "Updated app-wide routing/layout/auth-related components (App.tsx, LoginPage, AdminDashboardPage, ProfileSetupModal) and React Query hooks/cache invalidation patterns.",
-      "reason": "No requirements were specified in the BuildRequest.",
-      "evidence": [
-        "frontend-file-summaries.txt"
-      ]
-    },
-    {
-      "description": "Updated global styling and Tailwind theme configuration for a cricket-themed palette (emerald/amber) including OKLCH tokens.",
-      "reason": "No requirements were specified in the BuildRequest.",
-      "evidence": [
-        "frontend/index.css",
-        "frontend/src/index.css",
-        "frontend/tailwind.config.js",
-        "frontend-file-summaries.txt"
+        "frontend/src/hooks/useQueries.ts",
+        "frontend/src/components/PlayerAuctionDialog.tsx"
       ]
     }
   ],
-  "confidence": 0.76,
+  "hallucinated_features": [
+    {
+      "description": "Added backend migration module/infrastructure (migration.mo) and wired migration into the actor.",
+      "reason": "The BuildRequest did not ask for a migration system; it only asked to add an optional fixed increment setting. Migration may be reasonable for state evolution, but it is still an unrequested implementation detail.",
+      "evidence": [
+        "backend/migration.mo",
+        "backend/main.mo"
+      ]
+    }
+  ],
+  "confidence": 0.62,
   "changed_files": [
+    "backend/main.mo",
+    "backend/migration.mo",
     "frontend-file-summaries.txt",
-    "frontend/src/components/PlayerManagement.tsx",
-    "frontend/src/components/TeamHeader.tsx",
-    "frontend/src/components/TeamManagement.tsx",
-    "frontend/src/pages/TeamDashboardPage.tsx",
+    "frontend/src/components/PlayerAuctionDialog.tsx",
+    "frontend/src/hooks/useQueries.ts",
     "project_state.json"
   ]
 }
