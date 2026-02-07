@@ -1,12 +1,36 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useActor } from './useActor';
-import type { Player, Team, TeamExtended, TeamBudget, UserProfile, MatchView, BatsmanPerformance, BowlerPerformance, FielderPerformance, AuctionState, TeamSummary } from '../backend';
+import type {
+  Player,
+  Team,
+  TeamExtended,
+  TeamBudget,
+  AuctionState,
+  UserProfile,
+  MatchView,
+  MatchListView,
+  BatsmanPerformance,
+  BowlerPerformance,
+  FielderPerformance,
+  TeamSummary,
+  InningBallByBall,
+  UserRole,
+} from '../backend';
 import { Principal } from '@dfinity/principal';
 
-// Helper to check if error is an authorization error
-function isAuthorizationError(error: any): boolean {
-  const message = error?.message || String(error);
-  return message.includes('Unauthorized') || message.includes('trap');
+// User Role Query
+export function useGetCallerUserRole() {
+  const { actor, isFetching } = useActor();
+
+  return useQuery<UserRole>({
+    queryKey: ['currentUserRole'],
+    queryFn: async () => {
+      if (!actor) throw new Error('Actor not available');
+      return actor.getCallerUserRole();
+    },
+    enabled: !!actor && !isFetching,
+    retry: false,
+  });
 }
 
 // User Profile Queries
@@ -17,24 +41,10 @@ export function useGetCallerUserProfile() {
     queryKey: ['currentUserProfile'],
     queryFn: async () => {
       if (!actor) throw new Error('Actor not available');
-      try {
-        return await actor.getCallerUserProfile();
-      } catch (error) {
-        // If authorization error, return null (user not set up yet or not authorized)
-        if (isAuthorizationError(error)) {
-          return null;
-        }
-        throw error;
-      }
+      return actor.getCallerUserProfile();
     },
     enabled: !!actor && !actorFetching,
-    retry: (failureCount, error) => {
-      // Don't retry on authorization errors
-      if (isAuthorizationError(error)) {
-        return false;
-      }
-      return failureCount < 3;
-    },
+    retry: false,
   });
 
   return {
@@ -51,6 +61,7 @@ export function useSaveCallerUserProfile() {
   return useMutation({
     mutationFn: async (profile: UserProfile) => {
       if (!actor) throw new Error('Actor not available');
+      await actor.registerAsUser();
       return actor.saveCallerUserProfile(profile);
     },
     onSuccess: () => {
@@ -64,51 +75,12 @@ export function useGetAllPlayers() {
   const { actor, isFetching } = useActor();
 
   return useQuery<Player[]>({
-    queryKey: ['allPlayers'],
+    queryKey: ['players'],
     queryFn: async () => {
       if (!actor) return [];
-      try {
-        return await actor.getAllPlayers();
-      } catch (error) {
-        if (isAuthorizationError(error)) {
-          return [];
-        }
-        throw error;
-      }
+      return actor.getAllPlayers();
     },
     enabled: !!actor && !isFetching,
-    retry: (failureCount, error) => {
-      if (isAuthorizationError(error)) {
-        return false;
-      }
-      return failureCount < 3;
-    },
-  });
-}
-
-export function useGetPlayersForTeam(teamId?: bigint) {
-  const { actor, isFetching } = useActor();
-
-  return useQuery<Player[]>({
-    queryKey: ['teamPlayers', teamId?.toString()],
-    queryFn: async () => {
-      if (!actor || teamId === undefined) return [];
-      try {
-        return await actor.getPlayersForTeam(teamId);
-      } catch (error) {
-        if (isAuthorizationError(error)) {
-          return [];
-        }
-        throw error;
-      }
-    },
-    enabled: !!actor && !isFetching && teamId !== undefined,
-    retry: (failureCount, error) => {
-      if (isAuthorizationError(error)) {
-        return false;
-      }
-      return failureCount < 3;
-    },
   });
 }
 
@@ -122,7 +94,8 @@ export function useCreatePlayer() {
       return actor.createPlayer(name, basePrice);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['allPlayers'] });
+      queryClient.invalidateQueries({ queryKey: ['players'] });
+      queryClient.invalidateQueries({ queryKey: ['playerAssignments'] });
     },
   });
 }
@@ -137,8 +110,7 @@ export function useUpdatePlayer() {
       return actor.updatePlayer(playerId, name, basePrice);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['allPlayers'] });
-      queryClient.invalidateQueries({ queryKey: ['allMatches'] });
+      queryClient.invalidateQueries({ queryKey: ['players'] });
     },
   });
 }
@@ -153,8 +125,9 @@ export function useDeletePlayer() {
       return actor.deletePlayer(playerId);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['allPlayers'] });
+      queryClient.invalidateQueries({ queryKey: ['players'] });
       queryClient.invalidateQueries({ queryKey: ['playerAssignments'] });
+      queryClient.invalidateQueries({ queryKey: ['teamSummaries'] });
     },
   });
 }
@@ -164,25 +137,12 @@ export function useGetAllTeams() {
   const { actor, isFetching } = useActor();
 
   return useQuery<TeamExtended[]>({
-    queryKey: ['allTeams'],
+    queryKey: ['teams'],
     queryFn: async () => {
       if (!actor) return [];
-      try {
-        return await actor.getAllTeams();
-      } catch (error) {
-        if (isAuthorizationError(error)) {
-          return [];
-        }
-        throw error;
-      }
+      return actor.getAllTeams();
     },
     enabled: !!actor && !isFetching,
-    retry: (failureCount, error) => {
-      if (isAuthorizationError(error)) {
-        return false;
-      }
-      return failureCount < 3;
-    },
   });
 }
 
@@ -190,51 +150,25 @@ export function useGetAllTeamBudgets() {
   const { actor, isFetching } = useActor();
 
   return useQuery<TeamBudget[]>({
-    queryKey: ['allTeamBudgets'],
+    queryKey: ['teamBudgets'],
     queryFn: async () => {
       if (!actor) return [];
-      try {
-        return await actor.getAllTeamBudgets();
-      } catch (error) {
-        if (isAuthorizationError(error)) {
-          return [];
-        }
-        throw error;
-      }
+      return actor.getAllTeamBudgets();
     },
     enabled: !!actor && !isFetching,
-    retry: (failureCount, error) => {
-      if (isAuthorizationError(error)) {
-        return false;
-      }
-      return failureCount < 3;
-    },
   });
 }
 
-export function useGetRemainingTeamPurse(teamId?: bigint) {
+export function useGetRemainingTeamPurse(teamId: bigint | null) {
   const { actor, isFetching } = useActor();
 
   return useQuery<number>({
-    queryKey: ['remainingTeamPurse', teamId?.toString()],
+    queryKey: ['teamPurse', teamId?.toString()],
     queryFn: async () => {
-      if (!actor || teamId === undefined) return 0;
-      try {
-        return await actor.getRemainingTeamPurse(teamId);
-      } catch (error) {
-        if (isAuthorizationError(error)) {
-          return 0;
-        }
-        throw error;
-      }
+      if (!actor || !teamId) return 0;
+      return actor.getRemainingTeamPurse(teamId);
     },
-    enabled: !!actor && !isFetching && teamId !== undefined,
-    retry: (failureCount, error) => {
-      if (isAuthorizationError(error)) {
-        return false;
-      }
-      return failureCount < 3;
-    },
+    enabled: !!actor && !isFetching && !!teamId,
   });
 }
 
@@ -243,13 +177,21 @@ export function useCreateTeam() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ name, totalPurse, ownerPrincipals }: { name: string; totalPurse: number; ownerPrincipals: Principal[] }) => {
+    mutationFn: async ({
+      name,
+      totalPurse,
+      ownerPrincipals,
+    }: {
+      name: string;
+      totalPurse: number;
+      ownerPrincipals: Principal[];
+    }) => {
       if (!actor) throw new Error('Actor not available');
       return actor.createTeam(name, totalPurse, ownerPrincipals);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['allTeams'] });
-      queryClient.invalidateQueries({ queryKey: ['allTeamBudgets'] });
+      queryClient.invalidateQueries({ queryKey: ['teams'] });
+      queryClient.invalidateQueries({ queryKey: ['teamBudgets'] });
     },
   });
 }
@@ -264,8 +206,25 @@ export function useUpdateTeamPurse() {
       return actor.updateTeamPurse(teamId, newPurse);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['allTeams'] });
-      queryClient.invalidateQueries({ queryKey: ['allTeamBudgets'] });
+      queryClient.invalidateQueries({ queryKey: ['teams'] });
+      queryClient.invalidateQueries({ queryKey: ['teamBudgets'] });
+    },
+  });
+}
+
+export function useChangeTeamName() {
+  const { actor } = useActor();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ teamId, name }: { teamId: bigint; name: string }) => {
+      if (!actor) throw new Error('Actor not available');
+      return actor.changeTeamName(teamId, name);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['teams'] });
+      queryClient.invalidateQueries({ queryKey: ['teamSummaries'] });
+      queryClient.invalidateQueries({ queryKey: ['matches'] });
     },
   });
 }
@@ -280,8 +239,35 @@ export function useUpdateTeamOwners() {
       return actor.updateTeamOwners(teamId, newOwnerPrincipals);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['allTeams'] });
+      queryClient.invalidateQueries({ queryKey: ['teams'] });
     },
+  });
+}
+
+// Player Assignment Queries
+export function useGetPlayerTeamAssignmentsWithSoldAmount() {
+  const { actor, isFetching } = useActor();
+
+  return useQuery<[bigint, bigint | null, number][]>({
+    queryKey: ['playerAssignments'],
+    queryFn: async () => {
+      if (!actor) return [];
+      return actor.getPlayerTeamAssignmentsWithSoldAmount();
+    },
+    enabled: !!actor && !isFetching,
+  });
+}
+
+export function useGetPlayersForTeam(teamId: bigint | null) {
+  const { actor, isFetching } = useActor();
+
+  return useQuery<Player[]>({
+    queryKey: ['teamPlayers', teamId?.toString()],
+    queryFn: async () => {
+      if (!actor || !teamId) return [];
+      return actor.getPlayersForTeam(teamId);
+    },
+    enabled: !!actor && !isFetching && !!teamId,
   });
 }
 
@@ -296,7 +282,8 @@ export function useAddPlayerToTeam() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['playerAssignments'] });
-      queryClient.invalidateQueries({ queryKey: ['allTeamBudgets'] });
+      queryClient.invalidateQueries({ queryKey: ['teamBudgets'] });
+      queryClient.invalidateQueries({ queryKey: ['teamSummaries'] });
       queryClient.invalidateQueries({ queryKey: ['teamPlayers'] });
     },
   });
@@ -313,7 +300,96 @@ export function useRemovePlayerFromTeam() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['playerAssignments'] });
-      queryClient.invalidateQueries({ queryKey: ['allTeamBudgets'] });
+      queryClient.invalidateQueries({ queryKey: ['teamBudgets'] });
+      queryClient.invalidateQueries({ queryKey: ['teamSummaries'] });
+      queryClient.invalidateQueries({ queryKey: ['teamPlayers'] });
+    },
+  });
+}
+
+// Auction Queries
+export function useGetAuctionState(playerId: bigint) {
+  const { actor, isFetching } = useActor();
+
+  return useQuery<AuctionState | null>({
+    queryKey: ['auction', playerId.toString()],
+    queryFn: async () => {
+      if (!actor) return null;
+      return actor.getAuctionState(playerId);
+    },
+    enabled: !!actor && !isFetching,
+    refetchInterval: 3000,
+  });
+}
+
+export function useStartAuction() {
+  const { actor } = useActor();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({
+      playerId,
+      startingBid,
+      fixedIncrement,
+    }: {
+      playerId: bigint;
+      startingBid: number;
+      fixedIncrement: boolean;
+    }) => {
+      if (!actor) throw new Error('Actor not available');
+      return actor.startAuction(playerId, startingBid, fixedIncrement);
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['auction', variables.playerId.toString()] });
+    },
+  });
+}
+
+export function usePlaceBid() {
+  const { actor } = useActor();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ playerId, teamId, bidAmount }: { playerId: bigint; teamId: bigint; bidAmount: number }) => {
+      if (!actor) throw new Error('Actor not available');
+      return actor.placeBid(playerId, teamId, bidAmount);
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['auction', variables.playerId.toString()] });
+      queryClient.invalidateQueries({ queryKey: ['teamBudgets'] });
+    },
+  });
+}
+
+export function useStopAuction() {
+  const { actor } = useActor();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (playerId: bigint) => {
+      if (!actor) throw new Error('Actor not available');
+      return actor.stopAuction(playerId);
+    },
+    onSuccess: (_, playerId) => {
+      queryClient.invalidateQueries({ queryKey: ['auction', playerId.toString()] });
+    },
+  });
+}
+
+export function useAssignPlayerAfterAuction() {
+  const { actor } = useActor();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (playerId: bigint) => {
+      if (!actor) throw new Error('Actor not available');
+      return actor.assignPlayerAfterAuction(playerId);
+    },
+    onSuccess: (_, playerId) => {
+      queryClient.invalidateQueries({ queryKey: ['auction', playerId.toString()] });
+      queryClient.invalidateQueries({ queryKey: ['playerAssignments'] });
+      queryClient.invalidateQueries({ queryKey: ['teamBudgets'] });
+      queryClient.invalidateQueries({ queryKey: ['teamSummaries'] });
       queryClient.invalidateQueries({ queryKey: ['teamPlayers'] });
     },
   });
@@ -323,28 +399,26 @@ export function useRemovePlayerFromTeam() {
 export function useGetAllMatches() {
   const { actor, isFetching } = useActor();
 
-  return useQuery<MatchView[]>({
-    queryKey: ['allMatches'],
+  return useQuery<MatchListView[]>({
+    queryKey: ['matches'],
     queryFn: async () => {
       if (!actor) return [];
-      try {
-        const matchesArray = await actor.getAllMatches();
-        // Convert the array of [bigint, MatchView] to MatchView[]
-        return matchesArray.map(([_, match]) => match);
-      } catch (error) {
-        if (isAuthorizationError(error)) {
-          return [];
-        }
-        throw error;
-      }
+      return actor.getAllMatchesWithMetadata();
     },
     enabled: !!actor && !isFetching,
-    retry: (failureCount, error) => {
-      if (isAuthorizationError(error)) {
-        return false;
-      }
-      return failureCount < 3;
+  });
+}
+
+export function useGetMatchById(matchId: bigint) {
+  const { actor, isFetching } = useActor();
+
+  return useQuery<MatchView | null>({
+    queryKey: ['match', matchId.toString()],
+    queryFn: async () => {
+      if (!actor) return null;
+      return actor.getMatchById(matchId);
     },
+    enabled: !!actor && !isFetching,
   });
 }
 
@@ -372,7 +446,7 @@ export function useCreateMatch() {
       return actor.createMatch(homeTeamId, awayTeamId, homeTeamName, awayTeamName, date, location);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['allMatches'] });
+      queryClient.invalidateQueries({ queryKey: ['matches'] });
     },
   });
 }
@@ -400,41 +474,32 @@ export function useUpdateMatchResults() {
       if (!actor) throw new Error('Actor not available');
       return actor.updateMatchResults(matchId, homeTeamRuns, homeTeamWickets, awayTeamRuns, awayTeamWickets, matchWinner);
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['allMatches'] });
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['matches'] });
+      queryClient.invalidateQueries({ queryKey: ['match', variables.matchId.toString()] });
+      queryClient.invalidateQueries({ queryKey: ['publishedScorecard'] });
     },
   });
 }
 
-// Per-innings scorecard mutations
 export function useAddBatsmanPerformance() {
   const { actor } = useActor();
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({
-      matchId,
-      performance,
-    }: {
-      matchId: bigint;
-      performance: BatsmanPerformance;
-    }) => {
+    mutationFn: async ({ matchId, performance }: { matchId: bigint; performance: BatsmanPerformance }) => {
       if (!actor) throw new Error('Actor not available');
       return actor.addBatsmanPerformance(matchId, performance);
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['allMatches'] });
-    },
-    onError: (error: any) => {
-      if (isAuthorizationError(error)) {
-        throw new Error('You are not authorized to modify this match. Only admins or team owners can edit match data.');
-      }
-      throw error;
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['matches'] });
+      queryClient.invalidateQueries({ queryKey: ['match', variables.matchId.toString()] });
+      queryClient.invalidateQueries({ queryKey: ['publishedScorecard'] });
     },
   });
 }
 
-export function useUpdateBowlerPerformance() {
+export function useAddBowlerPerformance() {
   const { actor } = useActor();
   const queryClient = useQueryClient();
 
@@ -451,14 +516,10 @@ export function useUpdateBowlerPerformance() {
       if (!actor) throw new Error('Actor not available');
       return actor.updateBowlerPerformance(matchId, performance, innings);
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['allMatches'] });
-    },
-    onError: (error: any) => {
-      if (isAuthorizationError(error)) {
-        throw new Error('You are not authorized to modify this match. Only admins or team owners can edit match data.');
-      }
-      throw error;
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['matches'] });
+      queryClient.invalidateQueries({ queryKey: ['match', variables.matchId.toString()] });
+      queryClient.invalidateQueries({ queryKey: ['publishedScorecard'] });
     },
   });
 }
@@ -482,169 +543,108 @@ export function useUpdateBowlerPerformanceForUpdate() {
       if (!actor) throw new Error('Actor not available');
       return actor.updateBowlerPerformanceForUpdate(matchId, playerId, innings, updatedPerformance);
     },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['matches'] });
+      queryClient.invalidateQueries({ queryKey: ['match', variables.matchId.toString()] });
+      queryClient.invalidateQueries({ queryKey: ['publishedScorecard'] });
+    },
+  });
+}
+
+export function useAddFielderPerformance() {
+  const { actor } = useActor();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ matchId, performance }: { matchId: bigint; performance: FielderPerformance }) => {
+      if (!actor) throw new Error('Actor not available');
+      return actor.addFielderPerformance(matchId, performance);
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['matches'] });
+      queryClient.invalidateQueries({ queryKey: ['match', variables.matchId.toString()] });
+      queryClient.invalidateQueries({ queryKey: ['publishedScorecard'] });
+    },
+  });
+}
+
+export function usePublishScorecard() {
+  const { actor } = useActor();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ matchId, shareableId }: { matchId: bigint; shareableId: string }) => {
+      if (!actor) throw new Error('Actor not available');
+      return actor.publishScorecard(matchId, shareableId);
+    },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['allMatches'] });
-    },
-    onError: (error: any) => {
-      if (isAuthorizationError(error)) {
-        throw new Error('You are not authorized to modify this match. Only admins or team owners can edit match data.');
-      }
-      throw error;
+      queryClient.invalidateQueries({ queryKey: ['matches'] });
     },
   });
 }
 
-// Auction Queries
-export function useGetAuctionState(playerId?: bigint) {
+export function useUnpublishScorecard() {
+  const { actor } = useActor();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (matchId: bigint) => {
+      if (!actor) throw new Error('Actor not available');
+      return actor.unpublishScorecard(matchId);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['matches'] });
+    },
+  });
+}
+
+export function useGetPublishedScorecard(shareableId: string | undefined) {
   const { actor, isFetching } = useActor();
 
-  return useQuery<AuctionState | null>({
-    queryKey: ['auctionState', playerId?.toString()],
+  return useQuery<MatchView | null>({
+    queryKey: ['publishedScorecard', shareableId],
     queryFn: async () => {
-      if (!actor || playerId === undefined) return null;
-      try {
-        return await actor.getAuctionState(playerId);
-      } catch (error) {
-        if (isAuthorizationError(error)) {
-          return null;
-        }
-        throw error;
-      }
+      if (!actor || !shareableId) return null;
+      return actor.getPublishedScorecardByShareableId(shareableId);
     },
-    enabled: !!actor && !isFetching && playerId !== undefined,
-    refetchInterval: 3000, // Poll every 3 seconds
-    retry: (failureCount, error) => {
-      if (isAuthorizationError(error)) {
-        return false;
-      }
-      return failureCount < 3;
+    enabled: !!actor && !isFetching && !!shareableId,
+    refetchInterval: (query) => {
+      return query.state.data ? 3000 : false;
     },
+    refetchIntervalInBackground: true,
   });
 }
 
-export function useStartAuction() {
+export function useUpdateBallByBallData() {
   const { actor } = useActor();
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ playerId, startingBid, fixedIncrement }: { playerId: bigint; startingBid: number; fixedIncrement: boolean }) => {
+    mutationFn: async ({ matchId, ballByBallData }: { matchId: bigint; ballByBallData: InningBallByBall[] }) => {
       if (!actor) throw new Error('Actor not available');
-      return actor.startAuction(playerId, startingBid, fixedIncrement);
+      return actor.updateBallByBallData(matchId, ballByBallData);
     },
     onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['auctionState', variables.playerId.toString()] });
+      queryClient.invalidateQueries({ queryKey: ['matches'] });
+      queryClient.invalidateQueries({ queryKey: ['match', variables.matchId.toString()] });
+      queryClient.invalidateQueries({ queryKey: ['publishedScorecard'] });
     },
   });
 }
 
-export function usePlaceBid() {
-  const { actor } = useActor();
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: async ({ playerId, teamId, bidAmount }: { playerId: bigint; teamId: bigint; bidAmount: number }) => {
-      if (!actor) throw new Error('Actor not available');
-      return actor.placeBid(playerId, teamId, bidAmount);
-    },
-    onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['auctionState', variables.playerId.toString()] });
-      queryClient.invalidateQueries({ queryKey: ['allTeamBudgets'] });
-    },
-  });
-}
-
-export function useStopAuction() {
-  const { actor } = useActor();
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: async (playerId: bigint) => {
-      if (!actor) throw new Error('Actor not available');
-      return actor.stopAuction(playerId);
-    },
-    onSuccess: (_, playerId) => {
-      queryClient.invalidateQueries({ queryKey: ['auctionState', playerId.toString()] });
-    },
-  });
-}
-
-export function useAssignPlayerAfterAuction() {
-  const { actor } = useActor();
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: async (playerId: bigint) => {
-      if (!actor) throw new Error('Actor not available');
-      return actor.assignPlayerAfterAuction(playerId);
-    },
-    onSuccess: (_, playerId) => {
-      queryClient.invalidateQueries({ queryKey: ['auctionState', playerId.toString()] });
-      queryClient.invalidateQueries({ queryKey: ['playerAssignments'] });
-      queryClient.invalidateQueries({ queryKey: ['allTeamBudgets'] });
-      queryClient.invalidateQueries({ queryKey: ['teamPlayers'] });
-    },
-  });
-}
-
-// Player Assignment Queries
-export function useGetPlayerAssignments() {
-  const { actor, isFetching } = useActor();
-
-  return useQuery<Array<[bigint, bigint | null, number]>>({
-    queryKey: ['playerAssignments'],
-    queryFn: async () => {
-      if (!actor) return [];
-      try {
-        return await actor.getPlayerTeamAssignmentsWithSoldAmount();
-      } catch (error) {
-        if (isAuthorizationError(error)) {
-          return [];
-        }
-        throw error;
-      }
-    },
-    enabled: !!actor && !isFetching,
-    retry: (failureCount, error) => {
-      if (isAuthorizationError(error)) {
-        return false;
-      }
-      return failureCount < 3;
-    },
-  });
-}
-
-export function useGetPlayerTeamAssignmentsWithSoldAmount() {
-  return useGetPlayerAssignments();
-}
-
-// Team Summary Queries
 export function useGetAllTeamSummaries() {
   const { actor, isFetching } = useActor();
 
   return useQuery<TeamSummary[]>({
-    queryKey: ['allTeamSummaries'],
+    queryKey: ['teamSummaries'],
     queryFn: async () => {
       if (!actor) return [];
-      try {
-        return await actor.getAllTeamSummaries();
-      } catch (error) {
-        if (isAuthorizationError(error)) {
-          return [];
-        }
-        throw error;
-      }
+      return actor.getAllTeamSummaries();
     },
     enabled: !!actor && !isFetching,
-    retry: (failureCount, error) => {
-      if (isAuthorizationError(error)) {
-        return false;
-      }
-      return failureCount < 3;
-    },
   });
 }
 
-// Tournament Queries
 export function useGenerateFixtures() {
   const { actor } = useActor();
   const queryClient = useQueryClient();
@@ -655,31 +655,11 @@ export function useGenerateFixtures() {
       return actor.generateFixtures(tournamentName, startDate);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['allMatches'] });
+      queryClient.invalidateQueries({ queryKey: ['matches'] });
     },
   });
 }
 
-// Team Name Change
-export function useChangeTeamName() {
-  const { actor } = useActor();
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: async ({ teamId, name }: { teamId: bigint; name: string }) => {
-      if (!actor) throw new Error('Actor not available');
-      return actor.changeTeamName(teamId, name);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['allTeams'] });
-      queryClient.invalidateQueries({ queryKey: ['allTeamBudgets'] });
-      queryClient.invalidateQueries({ queryKey: ['allTeamSummaries'] });
-      queryClient.invalidateQueries({ queryKey: ['allMatches'] });
-    },
-  });
-}
-
-// Owner Name Management
 export function useChangeOwnerName() {
   const { actor } = useActor();
   const queryClient = useQueryClient();
@@ -691,89 +671,33 @@ export function useChangeOwnerName() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['ownerNames'] });
+      queryClient.invalidateQueries({ queryKey: ['teams'] });
     },
   });
 }
 
-export function useGetOwnerName(owner?: Principal) {
+export function useGetOwnerName(owner: Principal | null) {
   const { actor, isFetching } = useActor();
 
   return useQuery<string | null>({
     queryKey: ['ownerName', owner?.toString()],
     queryFn: async () => {
       if (!actor || !owner) return null;
-      try {
-        return await actor.getOwnerName(owner);
-      } catch (error) {
-        if (isAuthorizationError(error)) {
-          return null;
-        }
-        throw error;
-      }
+      return actor.getOwnerName(owner);
     },
     enabled: !!actor && !isFetching && !!owner,
-    retry: (failureCount, error) => {
-      if (isAuthorizationError(error)) {
-        return false;
-      }
-      return failureCount < 3;
-    },
   });
 }
 
 export function useGetAllOwnerNames() {
   const { actor, isFetching } = useActor();
 
-  return useQuery<Array<[Principal, string]>>({
+  return useQuery<[Principal, string][]>({
     queryKey: ['ownerNames'],
     queryFn: async () => {
       if (!actor) return [];
-      try {
-        return await actor.getAllOwnerNames();
-      } catch (error) {
-        if (isAuthorizationError(error)) {
-          return [];
-        }
-        throw error;
-      }
+      return actor.getAllOwnerNames();
     },
     enabled: !!actor && !isFetching,
-    retry: (failureCount, error) => {
-      if (isAuthorizationError(error)) {
-        return false;
-      }
-      return failureCount < 3;
-    },
-  });
-}
-
-export function useClearOwnerName() {
-  const { actor } = useActor();
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: async (owner: Principal) => {
-      if (!actor) throw new Error('Actor not available');
-      return actor.clearOwnerName(owner);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['ownerNames'] });
-    },
-  });
-}
-
-// User Registration
-export function useRegisterAsUser() {
-  const { actor } = useActor();
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: async () => {
-      if (!actor) throw new Error('Actor not available');
-      return actor.registerAsUser();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['currentUserProfile'] });
-    },
   });
 }

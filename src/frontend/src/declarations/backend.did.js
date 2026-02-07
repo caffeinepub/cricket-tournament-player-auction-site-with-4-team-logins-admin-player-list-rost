@@ -35,6 +35,22 @@ export const UserRole = IDL.Variant({
   'user' : IDL.Null,
   'guest' : IDL.Null,
 });
+export const BallOutcome = IDL.Record({
+  'wicket' : IDL.Bool,
+  'runs' : IDL.Nat,
+  'bowler' : IDL.Text,
+  'runsRemainingInOver' : IDL.Nat,
+  'wicketsRemainingInInnings' : IDL.Nat,
+  'batsman' : IDL.Text,
+  'wicketRemainingInOver' : IDL.Nat,
+  'typeOfDismissal' : IDL.Opt(IDL.Text),
+  'runsRemainingInInnings' : IDL.Nat,
+});
+export const InningBallByBall = IDL.Record({
+  'overNumber' : IDL.Nat,
+  'inningNumber' : IDL.Nat,
+  'balls' : IDL.Vec(BallOutcome),
+});
 export const MatchView = IDL.Record({
   'bowlers' : IDL.Vec(BowlerPerformance),
   'awayTeamId' : IDL.Nat,
@@ -44,6 +60,28 @@ export const MatchView = IDL.Record({
   'awayTeamRuns' : IDL.Nat,
   'homeTeamId' : IDL.Nat,
   'bowlersByInnings' : IDL.Vec(IDL.Tuple(IDL.Nat, IDL.Vec(BowlerPerformance))),
+  'ballByBallData' : IDL.Opt(IDL.Vec(InningBallByBall)),
+  'homeTeamWickets' : IDL.Nat,
+  'matchId' : IDL.Nat,
+  'homeTeamName' : IDL.Text,
+  'homeTeamRuns' : IDL.Nat,
+  'fielders' : IDL.Vec(FielderPerformance),
+  'batsmen' : IDL.Vec(BatsmanPerformance),
+  'matchWinner' : IDL.Text,
+  'location' : IDL.Text,
+});
+export const MatchListView = IDL.Record({
+  'bowlers' : IDL.Vec(BowlerPerformance),
+  'isPublished' : IDL.Bool,
+  'awayTeamId' : IDL.Nat,
+  'date' : IDL.Text,
+  'awayTeamWickets' : IDL.Nat,
+  'awayTeamName' : IDL.Text,
+  'shareableId' : IDL.Opt(IDL.Text),
+  'awayTeamRuns' : IDL.Nat,
+  'homeTeamId' : IDL.Nat,
+  'bowlersByInnings' : IDL.Vec(IDL.Tuple(IDL.Nat, IDL.Vec(BowlerPerformance))),
+  'ballByBallData' : IDL.Opt(IDL.Vec(InningBallByBall)),
   'homeTeamWickets' : IDL.Nat,
   'matchId' : IDL.Nat,
   'homeTeamName' : IDL.Text,
@@ -127,6 +165,11 @@ export const idlService = IDL.Service({
       [IDL.Vec(IDL.Tuple(IDL.Nat, MatchView))],
       ['query'],
     ),
+  'getAllMatchesWithMetadata' : IDL.Func(
+      [],
+      [IDL.Vec(MatchListView)],
+      ['query'],
+    ),
   'getAllOwnerNames' : IDL.Func(
       [],
       [IDL.Vec(IDL.Tuple(IDL.Principal, IDL.Text))],
@@ -152,6 +195,11 @@ export const idlService = IDL.Service({
       ['query'],
     ),
   'getPlayersForTeam' : IDL.Func([IDL.Nat], [IDL.Vec(Player)], ['query']),
+  'getPublishedScorecardByShareableId' : IDL.Func(
+      [IDL.Text],
+      [IDL.Opt(MatchView)],
+      ['query'],
+    ),
   'getRemainingTeamPurse' : IDL.Func([IDL.Nat], [IDL.Float64], ['query']),
   'getUserProfile' : IDL.Func(
       [IDL.Principal],
@@ -160,11 +208,18 @@ export const idlService = IDL.Service({
     ),
   'isCallerAdmin' : IDL.Func([], [IDL.Bool], ['query']),
   'placeBid' : IDL.Func([IDL.Nat, IDL.Nat, IDL.Float64], [], []),
+  'publishScorecard' : IDL.Func([IDL.Nat, IDL.Text], [], []),
   'registerAsUser' : IDL.Func([], [], []),
   'removePlayerFromTeam' : IDL.Func([IDL.Nat, IDL.Nat], [], []),
   'saveCallerUserProfile' : IDL.Func([UserProfile], [], []),
   'startAuction' : IDL.Func([IDL.Nat, IDL.Float64, IDL.Bool], [], []),
   'stopAuction' : IDL.Func([IDL.Nat], [], []),
+  'unpublishScorecard' : IDL.Func([IDL.Nat], [], []),
+  'updateBallByBallData' : IDL.Func(
+      [IDL.Nat, IDL.Vec(InningBallByBall)],
+      [],
+      [],
+    ),
   'updateBowlerPerformance' : IDL.Func(
       [IDL.Nat, BowlerPerformance, IDL.Nat],
       [],
@@ -216,6 +271,22 @@ export const idlFactory = ({ IDL }) => {
     'user' : IDL.Null,
     'guest' : IDL.Null,
   });
+  const BallOutcome = IDL.Record({
+    'wicket' : IDL.Bool,
+    'runs' : IDL.Nat,
+    'bowler' : IDL.Text,
+    'runsRemainingInOver' : IDL.Nat,
+    'wicketsRemainingInInnings' : IDL.Nat,
+    'batsman' : IDL.Text,
+    'wicketRemainingInOver' : IDL.Nat,
+    'typeOfDismissal' : IDL.Opt(IDL.Text),
+    'runsRemainingInInnings' : IDL.Nat,
+  });
+  const InningBallByBall = IDL.Record({
+    'overNumber' : IDL.Nat,
+    'inningNumber' : IDL.Nat,
+    'balls' : IDL.Vec(BallOutcome),
+  });
   const MatchView = IDL.Record({
     'bowlers' : IDL.Vec(BowlerPerformance),
     'awayTeamId' : IDL.Nat,
@@ -227,6 +298,30 @@ export const idlFactory = ({ IDL }) => {
     'bowlersByInnings' : IDL.Vec(
       IDL.Tuple(IDL.Nat, IDL.Vec(BowlerPerformance))
     ),
+    'ballByBallData' : IDL.Opt(IDL.Vec(InningBallByBall)),
+    'homeTeamWickets' : IDL.Nat,
+    'matchId' : IDL.Nat,
+    'homeTeamName' : IDL.Text,
+    'homeTeamRuns' : IDL.Nat,
+    'fielders' : IDL.Vec(FielderPerformance),
+    'batsmen' : IDL.Vec(BatsmanPerformance),
+    'matchWinner' : IDL.Text,
+    'location' : IDL.Text,
+  });
+  const MatchListView = IDL.Record({
+    'bowlers' : IDL.Vec(BowlerPerformance),
+    'isPublished' : IDL.Bool,
+    'awayTeamId' : IDL.Nat,
+    'date' : IDL.Text,
+    'awayTeamWickets' : IDL.Nat,
+    'awayTeamName' : IDL.Text,
+    'shareableId' : IDL.Opt(IDL.Text),
+    'awayTeamRuns' : IDL.Nat,
+    'homeTeamId' : IDL.Nat,
+    'bowlersByInnings' : IDL.Vec(
+      IDL.Tuple(IDL.Nat, IDL.Vec(BowlerPerformance))
+    ),
+    'ballByBallData' : IDL.Opt(IDL.Vec(InningBallByBall)),
     'homeTeamWickets' : IDL.Nat,
     'matchId' : IDL.Nat,
     'homeTeamName' : IDL.Text,
@@ -310,6 +405,11 @@ export const idlFactory = ({ IDL }) => {
         [IDL.Vec(IDL.Tuple(IDL.Nat, MatchView))],
         ['query'],
       ),
+    'getAllMatchesWithMetadata' : IDL.Func(
+        [],
+        [IDL.Vec(MatchListView)],
+        ['query'],
+      ),
     'getAllOwnerNames' : IDL.Func(
         [],
         [IDL.Vec(IDL.Tuple(IDL.Principal, IDL.Text))],
@@ -335,6 +435,11 @@ export const idlFactory = ({ IDL }) => {
         ['query'],
       ),
     'getPlayersForTeam' : IDL.Func([IDL.Nat], [IDL.Vec(Player)], ['query']),
+    'getPublishedScorecardByShareableId' : IDL.Func(
+        [IDL.Text],
+        [IDL.Opt(MatchView)],
+        ['query'],
+      ),
     'getRemainingTeamPurse' : IDL.Func([IDL.Nat], [IDL.Float64], ['query']),
     'getUserProfile' : IDL.Func(
         [IDL.Principal],
@@ -343,11 +448,18 @@ export const idlFactory = ({ IDL }) => {
       ),
     'isCallerAdmin' : IDL.Func([], [IDL.Bool], ['query']),
     'placeBid' : IDL.Func([IDL.Nat, IDL.Nat, IDL.Float64], [], []),
+    'publishScorecard' : IDL.Func([IDL.Nat, IDL.Text], [], []),
     'registerAsUser' : IDL.Func([], [], []),
     'removePlayerFromTeam' : IDL.Func([IDL.Nat, IDL.Nat], [], []),
     'saveCallerUserProfile' : IDL.Func([UserProfile], [], []),
     'startAuction' : IDL.Func([IDL.Nat, IDL.Float64, IDL.Bool], [], []),
     'stopAuction' : IDL.Func([IDL.Nat], [], []),
+    'unpublishScorecard' : IDL.Func([IDL.Nat], [], []),
+    'updateBallByBallData' : IDL.Func(
+        [IDL.Nat, IDL.Vec(InningBallByBall)],
+        [],
+        [],
+      ),
     'updateBowlerPerformance' : IDL.Func(
         [IDL.Nat, BowlerPerformance, IDL.Nat],
         [],

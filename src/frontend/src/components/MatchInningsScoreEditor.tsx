@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useGetAllPlayers, useAddBatsmanPerformance, useUpdateBowlerPerformance } from '../hooks/useQueries';
+import { useGetAllPlayers, useAddBatsmanPerformance, useUpdateBowlerPerformanceForUpdate } from '../hooks/useQueries';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -8,11 +8,11 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { AlertCircle, Plus, Save, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
-import type { MatchView, BatsmanPerformance, BowlerPerformance } from '../backend';
+import type { MatchView, MatchListView, BatsmanPerformance, BowlerPerformance } from '../backend';
 import { useInternetIdentity } from '../hooks/useInternetIdentity';
 
 interface MatchInningsScoreEditorProps {
-  match: MatchView;
+  match: MatchView | MatchListView;
 }
 
 interface EditableBatsmanRow {
@@ -83,14 +83,14 @@ export default function MatchInningsScoreEditor({ match }: MatchInningsScoreEdit
 }
 
 interface InningsEditorProps {
-  match: MatchView;
+  match: MatchView | MatchListView;
   innings: number;
   players: Array<{ id: bigint; name: string; basePrice: number }>;
 }
 
 function InningsEditor({ match, innings, players }: InningsEditorProps) {
   const addBatsmanMutation = useAddBatsmanPerformance();
-  const updateBowlerMutation = useUpdateBowlerPerformance();
+  const updateBowlerMutation = useUpdateBowlerPerformanceForUpdate();
 
   // Filter existing data by innings
   const existingBatsmen = match.batsmen.filter(b => Number(b.innings) === innings);
@@ -226,7 +226,7 @@ function InningsEditor({ match, innings, players }: InningsEditorProps) {
     }
 
     try {
-      const performance: BowlerPerformance = {
+      const updatedPerformance: BowlerPerformance = {
         playerId: BigInt(row.playerId),
         overs: parseFloat(row.overs || '0'),
         maidens: BigInt(row.maidens || 0),
@@ -237,8 +237,9 @@ function InningsEditor({ match, innings, players }: InningsEditorProps) {
 
       await updateBowlerMutation.mutateAsync({
         matchId: match.matchId,
-        performance,
+        playerId: BigInt(row.playerId),
         innings: BigInt(innings),
+        updatedPerformance,
       });
 
       toast.success('Bowler performance saved successfully');

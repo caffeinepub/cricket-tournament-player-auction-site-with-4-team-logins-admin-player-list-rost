@@ -12,13 +12,9 @@ export interface Player {
     name: string;
     basePrice: number;
 }
-export interface BowlerPerformance {
-    maidens: bigint;
-    overs: number;
-    playerId: bigint;
-    wickets: bigint;
-    ballsBowled: bigint;
-    runsConceded: bigint;
+export interface UserProfile {
+    name: string;
+    teamId?: bigint;
 }
 export interface TeamExtended {
     id: bigint;
@@ -26,24 +22,77 @@ export interface TeamExtended {
     name: string;
     totalPurse: number;
 }
-export interface BatsmanPerformance {
-    fours: bigint;
-    playerId: bigint;
-    runs: bigint;
-    sixes: bigint;
-    innings: bigint;
-    ballsFaced: bigint;
+export interface Team {
+    id: bigint;
+    name: string;
+    totalPurse: number;
 }
 export interface TeamSummary {
     team: TeamExtended;
     remainingPurse: number;
     roster: Array<[Player, number]>;
 }
+export interface BallOutcome {
+    wicket: boolean;
+    runs: bigint;
+    bowler: string;
+    runsRemainingInOver: bigint;
+    wicketsRemainingInInnings: bigint;
+    batsman: string;
+    wicketRemainingInOver: bigint;
+    typeOfDismissal?: string;
+    runsRemainingInInnings: bigint;
+}
+export interface MatchView {
+    bowlers: Array<BowlerPerformance>;
+    awayTeamId: bigint;
+    date: string;
+    awayTeamWickets: bigint;
+    awayTeamName: string;
+    awayTeamRuns: bigint;
+    homeTeamId: bigint;
+    bowlersByInnings: Array<[bigint, Array<BowlerPerformance>]>;
+    ballByBallData?: Array<InningBallByBall>;
+    homeTeamWickets: bigint;
+    matchId: bigint;
+    homeTeamName: string;
+    homeTeamRuns: bigint;
+    fielders: Array<FielderPerformance>;
+    batsmen: Array<BatsmanPerformance>;
+    matchWinner: string;
+    location: string;
+}
+export interface MatchListView {
+    bowlers: Array<BowlerPerformance>;
+    isPublished: boolean;
+    awayTeamId: bigint;
+    date: string;
+    awayTeamWickets: bigint;
+    awayTeamName: string;
+    shareableId?: string;
+    awayTeamRuns: bigint;
+    homeTeamId: bigint;
+    bowlersByInnings: Array<[bigint, Array<BowlerPerformance>]>;
+    ballByBallData?: Array<InningBallByBall>;
+    homeTeamWickets: bigint;
+    matchId: bigint;
+    homeTeamName: string;
+    homeTeamRuns: bigint;
+    fielders: Array<FielderPerformance>;
+    batsmen: Array<BatsmanPerformance>;
+    matchWinner: string;
+    location: string;
+}
 export interface FielderPerformance {
     stumpings: bigint;
     playerId: bigint;
     dismissals: bigint;
     catches: bigint;
+}
+export interface InningBallByBall {
+    overNumber: bigint;
+    inningNumber: bigint;
+    balls: Array<BallOutcome>;
 }
 export interface AuctionState {
     isStopped: boolean;
@@ -55,36 +104,25 @@ export interface AuctionState {
     fixedIncrement: boolean;
     startingBid: number;
 }
-export interface MatchView {
-    bowlers: Array<BowlerPerformance>;
-    awayTeamId: bigint;
-    date: string;
-    awayTeamWickets: bigint;
-    awayTeamName: string;
-    awayTeamRuns: bigint;
-    homeTeamId: bigint;
-    bowlersByInnings: Array<[bigint, Array<BowlerPerformance>]>;
-    homeTeamWickets: bigint;
-    matchId: bigint;
-    homeTeamName: string;
-    homeTeamRuns: bigint;
-    fielders: Array<FielderPerformance>;
-    batsmen: Array<BatsmanPerformance>;
-    matchWinner: string;
-    location: string;
-}
 export interface TeamBudget {
     team: Team;
     remainingPurse: number;
 }
-export interface UserProfile {
-    name: string;
-    teamId?: bigint;
+export interface BatsmanPerformance {
+    fours: bigint;
+    playerId: bigint;
+    runs: bigint;
+    sixes: bigint;
+    innings: bigint;
+    ballsFaced: bigint;
 }
-export interface Team {
-    id: bigint;
-    name: string;
-    totalPurse: number;
+export interface BowlerPerformance {
+    maidens: bigint;
+    overs: number;
+    playerId: bigint;
+    wickets: bigint;
+    ballsBowled: bigint;
+    runsConceded: bigint;
 }
 export enum UserRole {
     admin = "admin",
@@ -99,9 +137,6 @@ export interface backendInterface {
     addPlayerToTeam(playerId: bigint, teamId: bigint): Promise<void>;
     assignCallerUserRole(user: Principal, role: UserRole): Promise<void>;
     assignPlayerAfterAuction(playerId: bigint): Promise<void>;
-    /**
-     * / Change the name of an owner. Any authenticated user can set owner names.
-     */
     changeOwnerName(owner: Principal, name: string): Promise<void>;
     /**
      * / Change the name of a team. Any authenticated user can change team names.
@@ -114,6 +149,7 @@ export interface backendInterface {
     deletePlayer(playerId: bigint): Promise<void>;
     generateFixtures(tournamentName: string, startDate: string): Promise<void>;
     getAllMatches(): Promise<Array<[bigint, MatchView]>>;
+    getAllMatchesWithMetadata(): Promise<Array<MatchListView>>;
     getAllOwnerNames(): Promise<Array<[Principal, string]>>;
     getAllPlayers(): Promise<Array<Player>>;
     getAllTeamBudgets(): Promise<Array<TeamBudget>>;
@@ -127,10 +163,12 @@ export interface backendInterface {
     getOwnerName(owner: Principal): Promise<string | null>;
     getPlayerTeamAssignmentsWithSoldAmount(): Promise<Array<[bigint, bigint | null, number]>>;
     getPlayersForTeam(teamId: bigint): Promise<Array<Player>>;
+    getPublishedScorecardByShareableId(shareableId: string): Promise<MatchView | null>;
     getRemainingTeamPurse(teamId: bigint): Promise<number>;
     getUserProfile(user: Principal): Promise<UserProfile | null>;
     isCallerAdmin(): Promise<boolean>;
     placeBid(playerId: bigint, teamId: bigint, bidAmount: number): Promise<void>;
+    publishScorecard(matchId: bigint, shareableId: string): Promise<void>;
     /**
      * / Self-registration: any authenticated (non-anonymous) principal can register as a user
      */
@@ -139,6 +177,8 @@ export interface backendInterface {
     saveCallerUserProfile(profile: UserProfile): Promise<void>;
     startAuction(playerId: bigint, startingBid: number, fixedIncrement: boolean): Promise<void>;
     stopAuction(playerId: bigint): Promise<void>;
+    unpublishScorecard(matchId: bigint): Promise<void>;
+    updateBallByBallData(matchId: bigint, ballByBallData: Array<InningBallByBall>): Promise<void>;
     updateBowlerPerformance(matchId: bigint, performance: BowlerPerformance, innings: bigint): Promise<void>;
     updateBowlerPerformanceForUpdate(matchId: bigint, playerId: bigint, innings: bigint, updatedPerformance: BowlerPerformance): Promise<void>;
     updateInningsStart(matchId: bigint, innings: bigint): Promise<void>;

@@ -1,0 +1,70 @@
+[
+  {
+    "match": "**/*",
+    "cache": {
+      "max_age": 31536000
+    },
+    "headers": {
+      "X-Content-Type-Options": "nosniff",
+      "Referrer-Policy": "same-origin"
+    }
+  },
+  {
+    "match": "index.html",
+    "cache": {
+      "max_age": 0
+    },
+    "headers": {
+      "Content-Type": "text/html",
+      "Cache-Control": "no-cache, no-store, must-revalidate"
+    }
+  },
+  {
+    "match": "*.js",
+    "headers": {
+      "Content-Type": "application/javascript"
+    }
+  },
+  {
+    "match": "*.css",
+    "headers": {
+      "Content-Type": "text/css"
+    }
+  },
+  {
+    "match": "*.png",
+    "headers": {
+      "Content-Type": "image/png"
+    }
+  },
+  {
+    "match": "*.jpg",
+    "headers": {
+      "Content-Type": "image/jpeg"
+    }
+  },
+  {
+    "match": "*.jpeg",
+    "headers": {
+      "Content-Type": "image/jpeg"
+    }
+  },
+  {
+    "match": "*.svg",
+    "headers": {
+      "Content-Type": "image/svg+xml"
+    }
+  },
+  {
+    "match": "*.ico",
+    "headers": {
+      "Content-Type": "image/x-icon"
+    }
+  },
+  {
+    "match": "*.json",
+    "headers": {
+      "Content-Type": "application/json"
+    }
+  }
+]

@@ -1,13 +1,12 @@
 # Specification
 
 ## Summary
-**Goal:** Enable editing and saving per-innings scorecards (Innings 1 / Innings 2) with selectable player names, backed by per-innings storage and update APIs.
+**Goal:** Prevent blank-screen failures on the deployed site by adding a clear crash fallback, startup diagnostics, and more robust boot-time error capture.
 
 **Planned changes:**
-- Update backend match performance schema to store/query bowling (and other scorecard items needed by the UI) per innings, including adding an `innings` field to bowler performance records.
-- Add backend per-innings scorecard upsert/update APIs for batsman and bowler performance, allowing corrections to player selection (`playerId`) and numeric values with existing match-modification authorization.
-- Add/extend backend state migration so existing canister data upgrades cleanly and existing records get deterministic default innings values.
-- Implement an editable per-innings scorecard editor in the match edit dialog that supports selecting players by name and editing values independently for Innings 1 and Innings 2, with authenticated-only editing.
-- Update frontend bindings/types and React Query hooks to use the new APIs/fields and refresh displayed scorecards after saves (cache invalidation/refetch).
+- Add a top-level Error Boundary with a styled, English fallback screen that explains the app failed to load, prompts refresh, and can reveal technical error details (message/stack).
+- Add a hash-routed diagnostic page at `#/debug` showing URL/origin details, detected canister host/origin, build/version identifier, backend actor creation status, and results of at least one backend call.
+- Capture and handle global errors and unhandled promise rejections during startup so they surface in the crash fallback (when feasible) and are logged to the console with route/origin context.
+- Update `frontend/DEPLOYMENT.md` with a “Blank screen / site not loading” checklist referencing `#/debug` and steps to verify `index.html` and bundled assets return 200 on the deployed canister.
 
-**User-visible outcome:** Authenticated users can edit Innings 1 and Innings 2 scorecards independently (including choosing player names for each row) and save corrections; unauthenticated users see a read-only scorecard with a clear login-required message.
+**User-visible outcome:** If the app fails to load, users see a helpful error screen instead of a blank page, and anyone can visit `#/debug` to view runtime diagnostics and backend connectivity signals without using developer tools.

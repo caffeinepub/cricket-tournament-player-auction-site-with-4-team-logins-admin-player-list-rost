@@ -26,8 +26,9 @@ export default function TeamDashboardPage() {
   // Use profile team if available, otherwise use selected team
   const displayTeamId = profileTeamId || selectedTeamId;
   
-  const { data: teamPlayers } = useGetPlayersForTeam(displayTeamId);
-  const { data: remainingPurse } = useGetRemainingTeamPurse(displayTeamId);
+  // Convert undefined to null for hooks that expect bigint | null
+  const { data: teamPlayers } = useGetPlayersForTeam(displayTeamId ?? null);
+  const { data: remainingPurse } = useGetRemainingTeamPurse(displayTeamId ?? null);
 
   // Show loading state while profile is being fetched for authenticated users
   if (isAuthenticated && profileLoading) {

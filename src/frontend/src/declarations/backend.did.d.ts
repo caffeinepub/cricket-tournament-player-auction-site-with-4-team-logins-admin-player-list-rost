@@ -20,6 +20,17 @@ export interface AuctionState {
   'fixedIncrement' : boolean,
   'startingBid' : number,
 }
+export interface BallOutcome {
+  'wicket' : boolean,
+  'runs' : bigint,
+  'bowler' : string,
+  'runsRemainingInOver' : bigint,
+  'wicketsRemainingInInnings' : bigint,
+  'batsman' : string,
+  'wicketRemainingInOver' : bigint,
+  'typeOfDismissal' : [] | [string],
+  'runsRemainingInInnings' : bigint,
+}
 export interface BatsmanPerformance {
   'fours' : bigint,
   'playerId' : bigint,
@@ -42,6 +53,32 @@ export interface FielderPerformance {
   'dismissals' : bigint,
   'catches' : bigint,
 }
+export interface InningBallByBall {
+  'overNumber' : bigint,
+  'inningNumber' : bigint,
+  'balls' : Array<BallOutcome>,
+}
+export interface MatchListView {
+  'bowlers' : Array<BowlerPerformance>,
+  'isPublished' : boolean,
+  'awayTeamId' : bigint,
+  'date' : string,
+  'awayTeamWickets' : bigint,
+  'awayTeamName' : string,
+  'shareableId' : [] | [string],
+  'awayTeamRuns' : bigint,
+  'homeTeamId' : bigint,
+  'bowlersByInnings' : Array<[bigint, Array<BowlerPerformance>]>,
+  'ballByBallData' : [] | [Array<InningBallByBall>],
+  'homeTeamWickets' : bigint,
+  'matchId' : bigint,
+  'homeTeamName' : string,
+  'homeTeamRuns' : bigint,
+  'fielders' : Array<FielderPerformance>,
+  'batsmen' : Array<BatsmanPerformance>,
+  'matchWinner' : string,
+  'location' : string,
+}
 export interface MatchView {
   'bowlers' : Array<BowlerPerformance>,
   'awayTeamId' : bigint,
@@ -51,6 +88,7 @@ export interface MatchView {
   'awayTeamRuns' : bigint,
   'homeTeamId' : bigint,
   'bowlersByInnings' : Array<[bigint, Array<BowlerPerformance>]>,
+  'ballByBallData' : [] | [Array<InningBallByBall>],
   'homeTeamWickets' : bigint,
   'matchId' : bigint,
   'homeTeamName' : string,
@@ -96,9 +134,6 @@ export interface _SERVICE {
   'addPlayerToTeam' : ActorMethod<[bigint, bigint], undefined>,
   'assignCallerUserRole' : ActorMethod<[Principal, UserRole], undefined>,
   'assignPlayerAfterAuction' : ActorMethod<[bigint], undefined>,
-  /**
-   * / Change the name of an owner. Any authenticated user can set owner names.
-   */
   'changeOwnerName' : ActorMethod<[Principal, string], undefined>,
   /**
    * / Change the name of a team. Any authenticated user can change team names.
@@ -114,6 +149,7 @@ export interface _SERVICE {
   'deletePlayer' : ActorMethod<[bigint], undefined>,
   'generateFixtures' : ActorMethod<[string, string], undefined>,
   'getAllMatches' : ActorMethod<[], Array<[bigint, MatchView]>>,
+  'getAllMatchesWithMetadata' : ActorMethod<[], Array<MatchListView>>,
   'getAllOwnerNames' : ActorMethod<[], Array<[Principal, string]>>,
   'getAllPlayers' : ActorMethod<[], Array<Player>>,
   'getAllTeamBudgets' : ActorMethod<[], Array<TeamBudget>>,
@@ -133,10 +169,15 @@ export interface _SERVICE {
     Array<[bigint, [] | [bigint], number]>
   >,
   'getPlayersForTeam' : ActorMethod<[bigint], Array<Player>>,
+  'getPublishedScorecardByShareableId' : ActorMethod<
+    [string],
+    [] | [MatchView]
+  >,
   'getRemainingTeamPurse' : ActorMethod<[bigint], number>,
   'getUserProfile' : ActorMethod<[Principal], [] | [UserProfile]>,
   'isCallerAdmin' : ActorMethod<[], boolean>,
   'placeBid' : ActorMethod<[bigint, bigint, number], undefined>,
+  'publishScorecard' : ActorMethod<[bigint, string], undefined>,
   /**
    * / Self-registration: any authenticated (non-anonymous) principal can register as a user
    */
@@ -145,6 +186,11 @@ export interface _SERVICE {
   'saveCallerUserProfile' : ActorMethod<[UserProfile], undefined>,
   'startAuction' : ActorMethod<[bigint, number, boolean], undefined>,
   'stopAuction' : ActorMethod<[bigint], undefined>,
+  'unpublishScorecard' : ActorMethod<[bigint], undefined>,
+  'updateBallByBallData' : ActorMethod<
+    [bigint, Array<InningBallByBall>],
+    undefined
+  >,
   'updateBowlerPerformance' : ActorMethod<
     [bigint, BowlerPerformance, bigint],
     undefined

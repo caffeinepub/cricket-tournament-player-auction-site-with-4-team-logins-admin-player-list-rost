@@ -24,21 +24,17 @@ export default function TeamBoughtPlayersSection({ teamId }: TeamBoughtPlayersSe
           <Skeleton className="h-6 w-3/4" />
         </div>
       ) : isError ? (
-        <p className="text-xs text-destructive">Could not load players.</p>
-      ) : players && players.length > 0 ? (
-        <div className="flex flex-wrap gap-1.5">
+        <p className="text-sm text-destructive">Failed to load players</p>
+      ) : !players || players.length === 0 ? (
+        <p className="text-sm text-muted-foreground">No players bought yet</p>
+      ) : (
+        <div className="flex flex-wrap gap-2">
           {players.map((player) => (
-            <Badge 
-              key={Number(player.id)} 
-              variant="outline" 
-              className="text-xs font-normal"
-            >
+            <Badge key={player.id.toString()} variant="secondary">
               {player.name}
             </Badge>
           ))}
         </div>
-      ) : (
-        <p className="text-xs text-muted-foreground italic">No players bought yet.</p>
       )}
     </div>
   );

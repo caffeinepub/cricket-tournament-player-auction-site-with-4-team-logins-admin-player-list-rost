@@ -6,16 +6,15 @@ import Order "mo:core/Order";
 import Principal "mo:core/Principal";
 import Runtime "mo:core/Runtime";
 import Text "mo:core/Text";
+import Array "mo:core/Array";
 import AccessControl "authorization/access-control";
+
 import MixinAuthorization "authorization/MixinAuthorization";
-import Migration "migration";
 
 import FielderPerformance "FielderPerformance";
 import BatsmanPerformance "BatsmanPerformance";
 import BowlerPerformance "BowlerPerformance";
 
-// Use migration on upgrade
-(with migration = Migration.run)
 actor {
   let accessControlState = AccessControl.initState();
   include MixinAuthorization(accessControlState);
@@ -61,6 +60,27 @@ actor {
     bowlersByInnings : Map.Map<Nat, [BowlerPerformance.BowlerPerformance]>;
     fielders : [FielderPerformance.FielderPerformance];
     matchWinner : Text;
+    isPublished : Bool;
+    shareableId : ?Text;
+    ballByBallData : ?[InningBallByBall];
+  };
+
+  public type InningBallByBall = {
+    inningNumber : Nat;
+    overNumber : Nat;
+    balls : [BallOutcome];
+  };
+
+  public type BallOutcome = {
+    batsman : Text;
+    bowler : Text;
+    runs : Nat;
+    runsRemainingInOver : Nat;
+    runsRemainingInInnings : Nat;
+    wicket : Bool;
+    wicketRemainingInOver : Nat;
+    wicketsRemainingInInnings : Nat;
+    typeOfDismissal : ?Text;
   };
 
   public type MatchView = {
@@ -80,6 +100,7 @@ actor {
     bowlersByInnings : [(Nat, [BowlerPerformance.BowlerPerformance])];
     fielders : [FielderPerformance.FielderPerformance];
     matchWinner : Text;
+    ballByBallData : ?[InningBallByBall];
   };
 
   public type Scorecard = {
@@ -120,6 +141,28 @@ actor {
     team : TeamExtended;
     remainingPurse : Float;
     roster : [(Player, Float)];
+  };
+
+  public type MatchListView = {
+    matchId : Nat;
+    homeTeamId : Nat;
+    awayTeamId : Nat;
+    homeTeamName : Text;
+    awayTeamName : Text;
+    homeTeamRuns : Nat;
+    homeTeamWickets : Nat;
+    awayTeamRuns : Nat;
+    awayTeamWickets : Nat;
+    date : Text;
+    location : Text;
+    batsmen : [BatsmanPerformance.BatsmanPerformance];
+    bowlers : [BowlerPerformance.BowlerPerformance];
+    bowlersByInnings : [(Nat, [BowlerPerformance.BowlerPerformance])];
+    fielders : [FielderPerformance.FielderPerformance];
+    matchWinner : Text;
+    ballByBallData : ?[InningBallByBall];
+    isPublished : Bool;
+    shareableId : ?Text;
   };
 
   // Persistent storage
@@ -437,11 +480,66 @@ actor {
       bowlersByInnings = Map.empty<Nat, [BowlerPerformance.BowlerPerformance]>();
       fielders = [];
       matchWinner = "";
+      isPublished = false; // default is unpublished
+      shareableId = null;
+      ballByBallData = null;
     };
     let matchId = nextMatchId;
     matches.add(matchId, match);
     nextMatchId += 1;
     matchId;
+  };
+
+  public shared ({ caller }) func publishScorecard(matchId : Nat, shareableId : Text) : async () {
+    if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
+      Runtime.trap("Unauthorized: Only users can publish scorecards");
+    };
+    switch (matches.get(matchId)) {
+      case (null) { Runtime.trap("Match with given ID does not exist") };
+      case (?match) {
+        if (not canModifyMatch(caller, match)) {
+          Runtime.trap("Unauthorized: Only admins or team owners can publish scorecards");
+        };
+        // Ensure shareableId is unique
+        let matchesArr = matches.values().toArray();
+        if (
+          matchesArr.any(
+            func(existingMatch) {
+              existingMatch.isPublished and existingMatch.shareableId == ?shareableId
+            }
+          )
+        ) {
+          Runtime.trap("ShareableId must be unique");
+        };
+
+        let updatedMatch = {
+          match with
+          isPublished = true;
+          shareableId = ?shareableId;
+        };
+        matches.add(matchId, updatedMatch);
+      };
+    };
+  };
+
+  public shared ({ caller }) func unpublishScorecard(matchId : Nat) : async () {
+    if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
+      Runtime.trap("Unauthorized: Only users can unpublish scorecards");
+    };
+    switch (matches.get(matchId)) {
+      case (null) { Runtime.trap("Match with given ID does not exist") };
+      case (?match) {
+        if (not canModifyMatch(caller, match)) {
+          Runtime.trap("Unauthorized: Only admins or team owners can unpublish scorecards");
+        };
+        let updatedMatch = {
+          match with
+          isPublished = false;
+          shareableId = null;
+        };
+        matches.add(matchId, updatedMatch);
+      };
+    };
   };
 
   public query ({ caller }) func getAllMatches() : async [(Nat, MatchView)] {
@@ -455,7 +553,54 @@ actor {
     };
   };
 
+  // Public endpoint: Anyone (including anonymous guests) can view published scorecards via shareable link
+  public query ({ caller }) func getPublishedScorecardByShareableId(shareableId : Text) : async ?MatchView {
+    // No authorization check - this is intentionally public for anonymous access
+    let matchesArr = matches.values().toArray();
+    let matching = matchesArr.find(
+      func(match) {
+        match.isPublished and match.shareableId == ?shareableId;
+      }
+    );
+    switch (matching) {
+      case (null) { null };
+      case (?match) { ?toMatchView(match) };
+    };
+  };
+
+  public query ({ caller }) func getAllMatchesWithMetadata() : async [MatchListView] {
+    matches.values().toArray().map<Match, MatchListView>(
+      func(v) {
+        let bowlersByInningsArray = v.bowlersByInnings.toArray();
+        {
+          matchId = v.matchId;
+          homeTeamId = v.homeTeamId;
+          awayTeamId = v.awayTeamId;
+          homeTeamName = v.homeTeamName;
+          awayTeamName = v.awayTeamName;
+          homeTeamRuns = v.homeTeamRuns;
+          homeTeamWickets = v.homeTeamWickets;
+          awayTeamRuns = v.awayTeamRuns;
+          awayTeamWickets = v.awayTeamWickets;
+          date = v.date;
+          location = v.location;
+          batsmen = v.batsmen;
+          bowlers = v.bowlers;
+          bowlersByInnings = bowlersByInningsArray;
+          fielders = v.fielders;
+          matchWinner = v.matchWinner;
+          ballByBallData = v.ballByBallData;
+          isPublished = v.isPublished;
+          shareableId = v.shareableId;
+        };
+      }
+    );
+  };
+
   public shared ({ caller }) func addBatsmanPerformance(matchId : Nat, performance : BatsmanPerformance.BatsmanPerformance) : async () {
+    if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
+      Runtime.trap("Unauthorized: Only users can modify match performance data");
+    };
     switch (matches.get(matchId)) {
       case (null) { Runtime.trap("Match with given ID does not exist") };
       case (?match) {
@@ -473,6 +618,9 @@ actor {
   };
 
   public shared ({ caller }) func addBowlerPerformance(matchId : Nat, performance : BowlerPerformance.BowlerPerformance) : async () {
+    if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
+      Runtime.trap("Unauthorized: Only users can modify match performance data");
+    };
     switch (matches.get(matchId)) {
       case (null) { Runtime.trap("Match with given ID does not exist") };
       case (?match) {
@@ -488,6 +636,9 @@ actor {
   };
 
   public shared ({ caller }) func addBowlerPerformanceWithInnings(matchId : Nat, performance : BowlerPerformance.BowlerPerformance, innings : Nat) : async () {
+    if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
+      Runtime.trap("Unauthorized: Only users can modify match performance data");
+    };
     switch (matches.get(matchId)) {
       case (null) { Runtime.trap("Match with given ID does not exist") };
       case (?match) {
@@ -505,6 +656,9 @@ actor {
   };
 
   public shared ({ caller }) func updateBowlerPerformance(matchId : Nat, performance : BowlerPerformance.BowlerPerformance, innings : Nat) : async () {
+    if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
+      Runtime.trap("Unauthorized: Only users can modify match performance data");
+    };
     switch (matches.get(matchId)) {
       case (null) { Runtime.trap("Match with given ID does not exist") };
       case (?match) {
@@ -538,6 +692,9 @@ actor {
   };
 
   public shared ({ caller }) func updateBowlerPerformanceForUpdate(matchId : Nat, playerId : Nat, innings : Nat, updatedPerformance : BowlerPerformance.BowlerPerformance) : async () {
+    if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
+      Runtime.trap("Unauthorized: Only users can modify match performance data");
+    };
     if (innings == 0) {
       Runtime.trap("Invalid innings. Please provide a valid innings number greater than zero.");
     };
@@ -575,6 +732,9 @@ actor {
   };
 
   public shared ({ caller }) func updateInningsStart(matchId : Nat, innings : Nat) : async () {
+    if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
+      Runtime.trap("Unauthorized: Only users can update innings start");
+    };
     switch (matches.get(matchId)) {
       case (null) { Runtime.trap("Match with given ID does not exist") };
       case (?match) {
@@ -595,6 +755,9 @@ actor {
   };
 
   public shared ({ caller }) func addFielderPerformance(matchId : Nat, performance : FielderPerformance.FielderPerformance) : async () {
+    if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
+      Runtime.trap("Unauthorized: Only users can modify match performance data");
+    };
     switch (matches.get(matchId)) {
       case (null) { Runtime.trap("Match with given ID does not exist") };
       case (?match) {
@@ -619,6 +782,9 @@ actor {
     awayTeamWickets : Nat,
     matchWinner : Text,
   ) : async () {
+    if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
+      Runtime.trap("Unauthorized: Only users can update match results");
+    };
     switch (matches.get(matchId)) {
       case (null) { Runtime.trap("Match with given ID does not exist") };
       case (?match) {
@@ -975,6 +1141,9 @@ actor {
             bowlersByInnings = Map.empty<Nat, [BowlerPerformance.BowlerPerformance]>();
             fielders = [];
             matchWinner = "";
+            isPublished = false;
+            shareableId = null;
+            ballByBallData = null;
           };
           let matchId = nextMatchId;
           matches.add(matchId, match);
@@ -982,6 +1151,46 @@ actor {
         };
       };
     };
+  };
+
+  public shared ({ caller }) func updateBallByBallData(matchId : Nat, ballByBallData : [InningBallByBall]) : async () {
+    if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
+      Runtime.trap("Unauthorized: Only users can update ball-by-ball data");
+    };
+    switch (matches.get(matchId)) {
+      case (null) {
+        Runtime.trap("Match with given ID does not exist");
+      };
+      case (?match) {
+        if (not canModifyMatch(caller, match)) {
+          Runtime.trap("Unauthorized: Only admins or team owners can update ball-by-ball data");
+        };
+
+        if (not isValidBallByBallData(ballByBallData)) {
+          Runtime.trap("Invalid ball-by-ball data structure");
+        };
+
+        let updatedMatch = {
+          match with
+          ballByBallData = ?ballByBallData;
+        };
+        matches.add(matchId, updatedMatch);
+      };
+    };
+  };
+
+  func isValidBallByBallData(ballByBallData : [InningBallByBall]) : Bool {
+    let validOverCount = ballByBallData.all(
+      func(inning) {
+        inning.overNumber >= 0 and inning.overNumber <= 10
+      }
+    );
+    let ballsPerOverValid = ballByBallData.all(
+      func(inning) {
+        inning.balls.size() <= 6
+      }
+    );
+    validOverCount and ballsPerOverValid;
   };
 
   /// Change the name of a team. Any authenticated user can change team names.
@@ -1002,7 +1211,6 @@ actor {
     teams.add(teamId, updatedTeam);
   };
 
-  /// Change the name of an owner. Any authenticated user can set owner names.
   public shared ({ caller }) func changeOwnerName(owner : Principal, name : Text) : async () {
     if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
       Runtime.trap("Unauthorized: Only users can change owner names");
@@ -1044,7 +1252,7 @@ actor {
       bowlersByInnings = bowlersByInningsArray;
       fielders = match.fielders;
       matchWinner = match.matchWinner;
+      ballByBallData = match.ballByBallData;
     };
   };
 };
-

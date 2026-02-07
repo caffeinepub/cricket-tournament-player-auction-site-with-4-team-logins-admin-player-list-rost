@@ -1,82 +1,50 @@
 {
   "kind": "spec_vs_diff_report",
   "version": "1.0",
-  "generatedAt": "2026-02-07T12:02:17.899Z",
-  "summary": "Partial implementation: frontend adds a per-innings score editor UI (with innings tabs and player selection) and backend adds a new match field `bowlersByInnings` plus a migration file. However, key backend schema/API requirements for per-innings bowler records and upsert/update APIs (especially for batsmen) are not evidenced in the diff summary, and migration does not set deterministic default innings values for existing records. Several unrelated UI/theme changes also appear.",
+  "generatedAt": "2026-02-07T15:03:44.266Z",
+  "summary": "REQ-1, REQ-2, and REQ-3 appear largely implemented via a global Error Boundary + fatal error provider, early boot fallback in index.html, global error/unhandled rejection capture, and a new /debug diagnostics route/page. REQ-4 is not evidenced in the provided DEPLOYMENT.md diff content. One unrelated behavioral change (auth-gating match score editing) appears in the diff.",
   "missing_requirements": [
     {
-      "id": "REQ-1",
-      "requirement": "Bowler performance records include an `innings : Nat` field so the frontend can filter bowlers by innings reliably; existing match data can still be read after the change.",
-      "reason": "The diff shows a new `bowlersByInnings` map added to `Match`, but does not show any change to the `BowlerPerformance` record type to include an `innings : Nat` field (required by AC). Also, the migration sets `bowlersByInnings` to empty but does not demonstrate how existing bowler records become per-innings queryable via an `innings` field.",
-      "evidence": [
-        "backend/main.mo",
-        "backend/migration.mo"
-      ]
-    },
-    {
       "id": "REQ-2",
-      "requirement": "Add backend APIs to create and update/upsert per-innings scorecard entries for batsmen and bowlers (including changing playerId), with existing match-modification authorization and Unauthorized trap on rejection.",
-      "reason": "Frontend uses `useAddBatsmanPerformance` (suggesting append) and `useUpdateBowlerPerformance`, but the diff summary does not show backend APIs that upsert/update batsman performance for a specific match+innings (including playerId changes), nor a corresponding bowler upsert/update API with match+innings targeting and required authorization behavior.",
+      "requirement": "Diagnostics page must display a build/version identifier (e.g., from Vite env or package metadata).",
+      "reason": "runtimeDebugInfo only exposes buildInfo.mode and buildInfo.nodeEnv; no app version/build identifier is shown in the diff evidence.",
       "evidence": [
-        "frontend/src/components/MatchInningsScoreEditor.tsx",
-        "frontend/src/hooks/useQueries.ts",
-        "backend/main.mo"
-      ]
-    },
-    {
-      "id": "REQ-3",
-      "requirement": "Add/extend state migration so existing canister state is preserved when upgrading to the new per-innings scorecard schema, including deterministic default innings for existing bowler entries (documented).",
-      "reason": "Migration only adds `bowlersByInnings = Map.empty(...)` to each match and does not assign a deterministic default innings value to existing bowler performance entries (nor document such a default).",
-      "evidence": [
-        "backend/migration.mo"
+        "frontend/src/utils/runtimeDebugInfo.ts",
+        "frontend/src/pages/DebugPage.tsx"
       ]
     },
     {
       "id": "REQ-4",
-      "requirement": "If the user is not authenticated, the per-innings scorecard UI remains read-only and clearly indicates login is required (English text).",
-      "reason": "The editor component returns an Alert and does not render any read-only scorecard editor/values when unauthenticated; this does not meet the “remains read-only” requirement as written (it appears to hide the editor rather than render it read-only).",
+      "requirement": "Update frontend/DEPLOYMENT.md with a dedicated 'Blank screen / site not loading' checklist referencing #/debug and how to verify index.html/assets return 200 on the deployed canister.",
+      "reason": "The DEPLOYMENT.md snippet shown does not include the required troubleshooting/checklist section; only the header/intro and the start of a 'Production Deployment' section are visible.",
       "evidence": [
-        "frontend/src/components/MatchInningsScoreEditor.tsx"
-      ]
-    },
-    {
-      "id": "REQ-5",
-      "requirement": "Update React Query hooks and generated frontend backend bindings/types to support the new/updated backend scorecard update/upsert APIs and any new fields (e.g., bowler `innings`) end-to-end.",
-      "reason": "While hooks are referenced, the diff summary does not provide evidence of updated generated backend bindings/candid types to include the new backend APIs and required new fields (e.g., bowler `innings`). Also, the required new batsman upsert/update mutation hook (not just add/append) is not evidenced in the shown imports/usage.",
-      "evidence": [
-        "frontend/src/hooks/useQueries.ts",
-        "frontend/src/components/MatchInningsScoreEditor.tsx",
-        "backend/main.mo"
+        "frontend/DEPLOYMENT.md"
       ]
     }
   ],
   "hallucinated_features": [
     {
-      "description": "Global theming/dark-mode and Tailwind animation additions unrelated to per-innings scorecard editing.",
-      "reason": "BuildRequest does not ask for styling/theme changes, new animation keyframes, or forcing dark mode by default.",
+      "description": "Added an authentication requirement to edit match innings/player performance (shows 'Please log in to edit player performance data.').",
+      "reason": "The BuildRequest focuses on diagnosing/fixing a blank screen and adding crash/diagnostic tooling; it explicitly lists unrelated product/feature changes as non-goals.",
       "evidence": [
-        "frontend/tailwind.config.js",
-        "frontend/index.html",
-        "frontend/index.css",
-        "frontend/src/index.css"
-      ]
-    },
-    {
-      "description": "Changes to actor initialization hook regarding removal of a deprecated `_initializeAccessControlWithSecret` call.",
-      "reason": "Not requested by the BuildRequest; appears to be an unrelated refactor/compatibility change.",
-      "evidence": [
-        "frontend/src/hooks/useActor.ts"
+        "frontend/src/components/MatchInningsScoreEditor.tsx"
       ]
     }
   ],
-  "confidence": 0.62,
+  "confidence": 0.66,
   "changed_files": [
-    "backend/main.mo",
-    "backend/migration.mo",
     "frontend-file-summaries.txt",
+    "frontend/DEPLOYMENT.md",
+    "frontend/index.html",
+    "frontend/src/App.tsx",
+    "frontend/src/components/CrashFallbackScreen.tsx",
+    "frontend/src/components/FatalErrorProvider.tsx",
+    "frontend/src/components/GlobalErrorBoundary.tsx",
     "frontend/src/components/MatchInningsScoreEditor.tsx",
-    "frontend/src/components/MatchManagement.tsx",
     "frontend/src/hooks/useQueries.ts",
+    "frontend/src/pages/DebugPage.tsx",
+    "frontend/src/utils/globalErrorHandling.ts",
+    "frontend/src/utils/runtimeDebugInfo.ts",
     "project_state.json"
   ]
 }
