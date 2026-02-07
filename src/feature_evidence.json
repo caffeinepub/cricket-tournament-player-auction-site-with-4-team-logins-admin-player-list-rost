@@ -2,11 +2,10 @@
   "kind": "feature_evidence_report",
   "features": [
     {
-      "featureId": "feature-add-an-auction-setting-that-can-be-enabled-when-an-admin-starts-an-auction-to-enforce-a-fixed-bid-increment-of-0-2-cr-for-every-bid-placed-after-the-auction-starts",
-      "featureTitle": "Add an auction setting that can be enabled when an admin starts an auction to enforce a fixed bid increment of 0.2 Cr for every bid placed after the auction starts.",
+      "featureId": "feature-publish-the-current-draft-version-15-build-as-the-live-production-deployment-without-introducing-any-additional-feature-changes-beyond-what-is-already-in-draft-version-15",
+      "featureTitle": "Publish the current Draft Version 15 build as the live/production deployment without introducing any additional feature changes beyond what is already in Draft Version 15.",
       "files": [
-        "frontend/src/components/PlayerAuctionDialog.tsx",
-        "frontend/src/hooks/useQueries.ts"
+        "frontend/DEPLOYMENT.md"
       ],
       "components": [
         "authorization@4.0.0",
@@ -18,44 +17,6 @@
       ],
       "testIds": [
         "REQ-1"
-      ],
-      "confidence": "high"
-    },
-    {
-      "featureId": "feature-update-the-auction-dialog-ui-to-support-the-fixed-0-2-cr-bidding-flow-including-start-auction-controls-and-bid-input-behavior",
-      "featureTitle": "Update the auction dialog UI to support the fixed +0.2 Cr bidding flow, including start-auction controls and bid input behavior.",
-      "files": [
-        "frontend/src/components/PlayerAuctionDialog.tsx"
-      ],
-      "components": [
-        "authorization@4.0.0",
-        "core-infrastructure@1.0.2",
-        "shadcn-ui@1.0.0",
-        "build-template-react@1.0.0",
-        "initial-app@1.0.0",
-        "github-export-icp-cli@1.0.0"
-      ],
-      "testIds": [
-        "REQ-3"
-      ],
-      "confidence": "high"
-    },
-    {
-      "featureId": "feature-update-frontend-react-query-hooks-and-generated-backend-types-interfaces-to-support-the-new-auction-start-parameters-and-the-extended-auction-state",
-      "featureTitle": "Update frontend React Query hooks and generated backend types/interfaces to support the new auction start parameters and the extended auction state.",
-      "files": [
-        "frontend/src/hooks/useQueries.ts"
-      ],
-      "components": [
-        "authorization@4.0.0",
-        "core-infrastructure@1.0.2",
-        "shadcn-ui@1.0.0",
-        "build-template-react@1.0.0",
-        "initial-app@1.0.0",
-        "github-export-icp-cli@1.0.0"
-      ],
-      "testIds": [
-        "REQ-4"
       ],
       "confidence": "high"
     }

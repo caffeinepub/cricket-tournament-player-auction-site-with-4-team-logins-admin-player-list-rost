@@ -1,65 +1,21 @@
 {
   "kind": "implementation_plan",
   "version": "1.0",
-  "title": "Optional fixed +0.2 Cr bid increment mode for auctions (frontend)",
+  "title": "Publish Draft Version 15 (final deployment) — Frontend release plan",
   "requirements": [
     {
       "id": "REQ-1",
-      "summary": "Add an admin-start auction option to enable fixed +0.2 Cr bid increments and propagate the setting through the UI.",
+      "summary": "Publish the existing Draft Version 15 frontend build to live/production without introducing any feature/UI changes.",
       "acceptanceCriteria": [
-        "When starting an auction, the admin can choose whether the auction uses a fixed bid increment mode.",
-        "If fixed increment mode is enabled, the bid increment is 0.2 Cr and is stored as part of the auction state.",
-        "If fixed increment mode is not enabled, bidding continues to work as it does today (any amount higher than the current highest bid is accepted)."
+        "The deployed/live environment runs the exact same code and assets as Draft Version 15 (no additional commits/changes introduced solely for publishing).",
+        "The application loads successfully in the live environment and users can navigate to the existing routes: / (login), /team, and /admin.",
+        "The leading-team/bid highlight animation present in the draft remains present in the live deployment."
       ],
       "file_operations": [
         {
-          "path": "frontend/src/components/PlayerAuctionDialog.tsx",
-          "operation": "modify",
-          "description": "Add a start-auction control (e.g., checkbox/toggle) for \"Fixed increment (+0.2 Cr per bid)\" and pass the chosen value into the start-auction action. Use the shadcn-ui component set already in use by the dialog (do not edit anything under frontend/src/components/ui). Verify the component's usage instructions before implementing."
-        },
-        {
-          "path": "frontend/src/hooks/useQueries.ts",
-          "operation": "modify",
-          "description": "Update the startAuction mutation wrapper to accept and forward the fixedIncrement flag when starting an auction, and keep query invalidation behavior consistent."
-        }
-      ]
-    },
-    {
-      "id": "REQ-3",
-      "summary": "Update the auction dialog bidding UX to support fixed +0.2 Cr increments when enabled, including default/next bid behavior and error display.",
-      "acceptanceCriteria": [
-        "In the \"Start Auction\" state, the dialog includes an option (e.g., checkbox/toggle) to enable \"Fixed increment (+0.2 Cr per bid)\".",
-        "When fixed increment is enabled for an active auction, the bid entry UI makes it easy to place the next valid bid (default value or quick-raise sets bid to highestBid + 0.2).",
-        "The bid amount input step and any auto-fill/next-bid behavior use 0.2 (replacing the current 0.5 behavior) when fixed increment is enabled.",
-        "If a user attempts an invalid bid for a fixed-increment auction, the UI shows an English error toast based on the backend error message.",
-        "All existing auction UI flows still work (start, bid, finalize) for auctions without fixed increment enabled."
-      ],
-      "file_operations": [
-        {
-          "path": "frontend/src/components/PlayerAuctionDialog.tsx",
-          "operation": "modify",
-          "description": "Use AuctionState.fixedIncrement to drive bid input behavior: set input step appropriately, auto-suggest the next bid as highestBid + 0.2 when fixedIncrement=true (otherwise keep current behavior), and adjust post-bid auto-fill/\"next bid\" value accordingly. Ensure error handling surfaces backend-provided English messages for invalid fixed-increment bids (toast should display the backend message when present). Verify the component's usage instructions before implementing."
-        }
-      ]
-    },
-    {
-      "id": "REQ-4",
-      "summary": "Update React Query hooks and frontend candid bindings/types to reflect the new startAuction parameters and auction state fields.",
-      "acceptanceCriteria": [
-        "The startAuction mutation can pass the fixed-increment option to the backend when starting an auction.",
-        "AuctionState returned to the frontend includes the fixed increment configuration so the UI can render the correct bid behavior.",
-        "TypeScript compilation succeeds with the updated candid bindings/types."
-      ],
-      "file_operations": [
-        {
-          "path": "frontend/src/hooks/useQueries.ts",
-          "operation": "modify",
-          "description": "Align TypeScript types for the startAuction mutation input with the backend actor signature by adding the fixedIncrement boolean parameter, and ensure all call sites compile cleanly."
-        },
-        {
-          "path": "frontend/src/backend.d.ts",
-          "operation": "modify",
-          "description": "Update/verify generated backend TypeScript declarations so startAuction includes the fixedIncrement argument and AuctionState includes fixedIncrement (and any related fields), matching the latest candid bindings."
+          "path": "frontend/DEPLOYMENT.md",
+          "operation": "create",
+          "description": "Add a release checklist documenting how to deploy the already-built Draft Version 15 frontend to production (e.g., confirm the exact source revision/build artifacts, run a smoke test that visits /, /team, and /admin, and visually confirm the leading-team highlight animation remains intact). Ensure the document emphasizes no code or asset modifications are required for publishing."
         }
       ]
     }

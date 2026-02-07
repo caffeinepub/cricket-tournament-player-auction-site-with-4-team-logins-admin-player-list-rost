@@ -399,19 +399,40 @@ export function usePlaceBid() {
     },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['auctionState', variables.playerId.toString()] });
-      queryClient.invalidateQueries({ queryKey: ['allPlayers'] });
+      queryClient.invalidateQueries({ queryKey: ['teamBudgets'] });
+      queryClient.invalidateQueries({ queryKey: ['remainingPurse'] });
+    },
+    onSettled: (_, __, variables) => {
+      // Refetch auction state even on error to ensure UI reflects backend state
+      queryClient.invalidateQueries({ queryKey: ['auctionState', variables.playerId.toString()] });
     },
   });
 }
 
-export function useFinalizeAuction() {
+export function useStopAuction() {
   const { actor } = useActor();
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: async (playerId: bigint) => {
       if (!actor) throw new Error('Actor not available');
-      return actor.finalizeAuction(playerId);
+      return actor.stopAuction(playerId);
+    },
+    onSuccess: (_, playerId) => {
+      queryClient.invalidateQueries({ queryKey: ['auctionState', playerId.toString()] });
+      queryClient.invalidateQueries({ queryKey: ['allPlayers'] });
+    },
+  });
+}
+
+export function useAssignPlayerAfterAuction() {
+  const { actor } = useActor();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (playerId: bigint) => {
+      if (!actor) throw new Error('Actor not available');
+      return actor.assignPlayerAfterAuction(playerId);
     },
     onSuccess: (_, playerId) => {
       queryClient.invalidateQueries({ queryKey: ['auctionState', playerId.toString()] });

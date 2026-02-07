@@ -2,6 +2,8 @@ import Array "mo:core/Array";
 import Float "mo:core/Float";
 import Iter "mo:core/Iter";
 import Map "mo:core/Map";
+
+
 import Nat "mo:core/Nat";
 import Order "mo:core/Order";
 import Principal "mo:core/Principal";
@@ -9,15 +11,12 @@ import Runtime "mo:core/Runtime";
 import Text "mo:core/Text";
 import AccessControl "authorization/access-control";
 import MixinAuthorization "authorization/MixinAuthorization";
-import Migration "migration";
 
-(with migration = Migration.run)
+
 actor {
-  // Initialize the access control system
   let accessControlState = AccessControl.initState();
   include MixinAuthorization(accessControlState);
 
-  // Types
   public type Player = {
     id : Nat;
     name : Text;
@@ -101,6 +100,8 @@ actor {
     highestBid : Float;
     highestBidTeamId : ?Nat;
     isFinalized : Bool;
+    isStopped : Bool;
+    isAssigning : Bool;
     fixedIncrement : Bool;
   };
 
@@ -112,12 +113,10 @@ actor {
   let matches = Map.empty<Nat, Match>();
   let auctions = Map.empty<Nat, AuctionState>();
 
-  // Persistent IDs
   var nextPlayerId = 1;
   var nextTeamId = 1;
   var nextMatchId = 1;
 
-  // Compare functions (now actor-local)
   func comparePlayer(player1 : Player, player2 : Player) : Order.Order {
     Nat.compare(player1.id, player2.id);
   };
@@ -131,7 +130,6 @@ actor {
     Text.compare(match1.date, match2.date);
   };
 
-  // Helper function to calculate remaining purse for a team
   func calculateRemainingPurse(teamId : Nat) : Float {
     switch (teams.get(teamId)) {
       case (null) { 0.0 };
@@ -155,7 +153,6 @@ actor {
     };
   };
 
-  // User Profile Management
   public query ({ caller }) func getCallerUserProfile() : async ?UserProfile {
     if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
       Runtime.trap("Unauthorized: Only users can view profiles");
@@ -177,7 +174,6 @@ actor {
     userProfiles.add(caller, profile);
   };
 
-  // Model Updates - Admin only
   public shared ({ caller }) func createPlayer(name : Text, basePrice : Float) : async () {
     if (not (AccessControl.hasPermission(accessControlState, caller, #admin))) {
       Runtime.trap("Unauthorized: Only admins can create players");
@@ -445,6 +441,8 @@ actor {
       highestBid = startingBid;
       highestBidTeamId = null;
       isFinalized = false;
+      isStopped = false;
+      isAssigning = false;
       fixedIncrement;
     };
 
@@ -495,6 +493,10 @@ actor {
         Runtime.trap("Auction does not exist");
       };
       case (?auctionState) {
+        if (auctionState.isStopped) {
+          Runtime.trap("Auction has been stopped, no more bids are accepted for this player");
+        };
+
         if (auctionState.isFinalized) {
           Runtime.trap("Auction is finalized, you cannot bid");
         };
@@ -520,18 +522,43 @@ actor {
     };
   };
 
-  public shared ({ caller }) func finalizeAuction(playerId : Nat) : async () {
+  public shared ({ caller }) func stopAuction(playerId : Nat) : async () {
+    if (not (AccessControl.hasPermission(accessControlState, caller, #admin))) {
+      Runtime.trap("Unauthorized: Only admins can stop auctions");
+    };
+
+    switch (auctions.get(playerId)) {
+      case (null) {
+        Runtime.trap("Auction does not exist for this player");
+      };
+      case (?auctionState) {
+        if (auctionState.isStopped) {
+          Runtime.trap("Auction has already been stopped");
+        };
+
+        let stoppedAuction = {
+          auctionState with
+          isStopped = true;
+          isAssigning = true; // Now ready for assignment
+        };
+        auctions.add(playerId, stoppedAuction);
+      };
+    };
+  };
+
+  // Complete the assignment AFTER stopping the bidding, for admin only
+  public shared ({ caller }) func assignPlayerAfterAuction(playerId : Nat) : async () {
     if (not (AccessControl.hasPermission(accessControlState, caller, #admin))) {
       Runtime.trap("Unauthorized: Only admins can finalize auctions");
     };
-    // Validate auction existence
+
     switch (auctions.get(playerId)) {
       case (null) {
         Runtime.trap("Auction does not exist");
       };
       case (?auctionState) {
-        if (auctionState.isFinalized) {
-          Runtime.trap("Auction is already finalized");
+        if (not auctionState.isAssigning) {
+          Runtime.trap("Auction is not in assigning state");
         };
 
         // Verify winning team has sufficient budget before finalizing
@@ -548,6 +575,7 @@ actor {
         let finalizedAuction = {
           auctionState with
           isFinalized = true;
+          isAssigning = false; // No longer in assigning mode
         };
 
         auctions.add(playerId, finalizedAuction);
@@ -567,7 +595,6 @@ actor {
     auctions.get(playerId);
   };
 
-  // Queries to fetch all players, teams, team budgets, team assignments, and players in a team
   public query ({ caller }) func getAllPlayers() : async [Player] {
     players.values().toArray();
   };
@@ -620,3 +647,4 @@ actor {
     };
   };
 };
+

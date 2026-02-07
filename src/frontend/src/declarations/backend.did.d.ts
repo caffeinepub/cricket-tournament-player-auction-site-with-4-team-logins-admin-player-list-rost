@@ -11,10 +11,12 @@ import type { IDL } from '@icp-sdk/core/candid';
 import type { Principal } from '@icp-sdk/core/principal';
 
 export interface AuctionState {
+  'isStopped' : boolean,
   'playerId' : bigint,
   'highestBid' : number,
   'isFinalized' : boolean,
   'highestBidTeamId' : [] | [bigint],
+  'isAssigning' : boolean,
   'fixedIncrement' : boolean,
   'startingBid' : number,
 }
@@ -76,6 +78,7 @@ export interface _SERVICE {
   >,
   'addPlayerToTeam' : ActorMethod<[bigint, bigint], undefined>,
   'assignCallerUserRole' : ActorMethod<[Principal, UserRole], undefined>,
+  'assignPlayerAfterAuction' : ActorMethod<[bigint], undefined>,
   'createMatch' : ActorMethod<
     [bigint, bigint, string, string, string, string],
     bigint
@@ -83,7 +86,6 @@ export interface _SERVICE {
   'createPlayer' : ActorMethod<[string, number], undefined>,
   'createTeam' : ActorMethod<[string, number], undefined>,
   'deletePlayer' : ActorMethod<[bigint], undefined>,
-  'finalizeAuction' : ActorMethod<[bigint], undefined>,
   'getAllMatches' : ActorMethod<[], Array<Match>>,
   'getAllPlayers' : ActorMethod<[], Array<Player>>,
   'getAllTeamBudgets' : ActorMethod<[], Array<TeamBudget>>,
@@ -101,6 +103,7 @@ export interface _SERVICE {
   'removePlayerFromTeam' : ActorMethod<[bigint, bigint], undefined>,
   'saveCallerUserProfile' : ActorMethod<[UserProfile], undefined>,
   'startAuction' : ActorMethod<[bigint, number, boolean], undefined>,
+  'stopAuction' : ActorMethod<[bigint], undefined>,
   'updateMatchResults' : ActorMethod<
     [bigint, bigint, bigint, bigint, bigint, string],
     undefined

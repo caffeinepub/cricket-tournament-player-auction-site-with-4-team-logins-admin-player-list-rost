@@ -1,88 +1,33 @@
 {
   "kind": "build_request",
-  "title": "Add optional fixed +0.2 Cr bid increment for auctions",
+  "title": "Publish Draft Version 15 (final deployment)",
   "priority": "normal",
   "requirements": [
     {
       "id": "REQ-1",
-      "text": "Add an auction setting that can be enabled when an admin starts an auction to enforce a fixed bid increment of 0.2 Cr for every bid placed after the auction starts.",
-      "target": "both",
+      "text": "Publish the current Draft Version 15 build as the live/production deployment without introducing any additional feature changes beyond what is already in Draft Version 15.",
+      "target": "unknown",
       "source": {
         "messageIds": [
-          "msg-1"
+          "msg-3"
         ],
         "quotes": [
-          "Add a option that after starting the auction, every time a team bids can raise the biding amount by 0.2cr"
+          "Now it’s fine just publish it"
         ]
       },
       "acceptanceCriteria": [
-        "When starting an auction, the admin can choose whether the auction uses a fixed bid increment mode.",
-        "If fixed increment mode is enabled, the bid increment is 0.2 Cr and is stored as part of the auction state.",
-        "If fixed increment mode is not enabled, bidding continues to work as it does today (any amount higher than the current highest bid is accepted)."
-      ]
-    },
-    {
-      "id": "REQ-2",
-      "text": "Enforce the fixed +0.2 Cr increment rule in the backend bidding logic so invalid bid amounts are rejected server-side.",
-      "target": "backend",
-      "source": {
-        "messageIds": [
-          "msg-1"
-        ],
-        "quotes": [
-          "every time a team bids can raise the biding amount by 0.2cr"
-        ]
-      },
-      "acceptanceCriteria": [
-        "For auctions with fixed increment enabled, a bid is accepted only if it is exactly currentHighestBid + 0.2 (within a reasonable floating point tolerance).",
-        "Backend returns a clear trap/error message for invalid increment bids (English), suitable for displaying in the UI.",
-        "Existing authorization checks (user must bid only for their own team) continue to apply unchanged.",
-        "Auctions without fixed increment enabled still only require bidAmount > currentHighestBid."
-      ]
-    },
-    {
-      "id": "REQ-3",
-      "text": "Update the auction dialog UI to support the fixed +0.2 Cr bidding flow, including start-auction controls and bid input behavior.",
-      "target": "frontend",
-      "source": {
-        "messageIds": [
-          "msg-1"
-        ],
-        "quotes": [
-          "Add a option that after starting the auction... raise the biding amount by 0.2cr"
-        ]
-      },
-      "acceptanceCriteria": [
-        "In the \"Start Auction\" state, the dialog includes an option (e.g., checkbox/toggle) to enable \"Fixed increment (+0.2 Cr per bid)\".",
-        "When fixed increment is enabled for an active auction, the bid entry UI makes it easy to place the next valid bid (default value or quick-raise sets bid to highestBid + 0.2).",
-        "The bid amount input step and any auto-fill/next-bid behavior use 0.2 (replacing the current 0.5 behavior) when fixed increment is enabled.",
-        "If a user attempts an invalid bid for a fixed-increment auction, the UI shows an English error toast based on the backend error message.",
-        "All existing auction UI flows still work (start, bid, finalize) for auctions without fixed increment enabled."
-      ]
-    },
-    {
-      "id": "REQ-4",
-      "text": "Update frontend React Query hooks and generated backend types/interfaces to support the new auction start parameters and the extended auction state.",
-      "target": "frontend",
-      "source": {
-        "messageIds": [
-          "msg-1"
-        ]
-      },
-      "acceptanceCriteria": [
-        "The startAuction mutation can pass the fixed-increment option to the backend when starting an auction.",
-        "AuctionState returned to the frontend includes the fixed increment configuration so the UI can render the correct bid behavior.",
-        "TypeScript compilation succeeds with the updated candid bindings/types."
+        "The deployed/live environment runs the exact same code and assets as Draft Version 15 (no additional commits/changes introduced solely for publishing).",
+        "The application loads successfully in the live environment and users can navigate to the existing routes: / (login), /team, and /admin.",
+        "The leading-team/bid highlight animation present in the draft remains present in the live deployment."
       ]
     }
   ],
   "constraints": [
-    "Backend must remain a single Motoko actor in backend/main.mo (no additional backend services).",
-    "Do not edit files under frontend/src/components/ui or any paths listed as immutable in SYSTEM_CONTEXT."
+    "Do not add new product features or UI/UX changes; only perform the publish/release step for the existing Draft Version 15 build."
   ],
   "nonGoals": [
-    "Do not implement variable increment sizes (only the requested 0.2 Cr increment option).",
-    "Do not add real-time updates/WebSocket bidding; UI can continue using existing query invalidation/refetch patterns."
+    "Implementing additional auction UI changes beyond the already completed leading-bid/leading-team animation work.",
+    "Backend schema/state migrations or data resets."
   ],
   "imageRequirements": {
     "required": [],

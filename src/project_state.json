@@ -1,34 +1,16 @@
 {
   "schemaVersion": "1.0.0",
   "projectStateVersion": 3,
-  "summary": "Auction app: teams view shows players; add auction bidding controls and enhancements.",
-  "architectural_notes": [
-    "Support configurable bid increment (e.g., 0.2cr) applied on each bid after auction start."
-  ],
+  "summary": "New project",
+  "architectural_notes": [],
   "known_issues": [],
   "isFixRequest": false,
   "existing_features": [
     {
-      "id": "feature-add-an-auction-setting-that-can-be-enabled-when-an-admin-starts-an-auction-to-enforce-a-fixed-bid-increment-of-0-2-cr-for-every-bid-placed-after-the-auction-starts",
-      "title": "Add an auction setting that can be enabled when an admin starts an auction to enforce a fixed bid increment of 0.2 Cr for every bid placed after the auction starts.",
+      "id": "feature-publish-the-current-draft-version-15-build-as-the-live-production-deployment-without-introducing-any-additional-feature-changes-beyond-what-is-already-in-draft-version-15",
+      "title": "Publish the current Draft Version 15 build as the live/production deployment without introducing any additional feature changes beyond what is already in Draft Version 15.",
       "reqIds": [
         "REQ-1"
-      ],
-      "version": 1
-    },
-    {
-      "id": "feature-update-the-auction-dialog-ui-to-support-the-fixed-0-2-cr-bidding-flow-including-start-auction-controls-and-bid-input-behavior",
-      "title": "Update the auction dialog UI to support the fixed +0.2 Cr bidding flow, including start-auction controls and bid input behavior.",
-      "reqIds": [
-        "REQ-3"
-      ],
-      "version": 1
-    },
-    {
-      "id": "feature-update-frontend-react-query-hooks-and-generated-backend-types-interfaces-to-support-the-new-auction-start-parameters-and-the-extended-auction-state",
-      "title": "Update frontend React Query hooks and generated backend types/interfaces to support the new auction start parameters and the extended auction state.",
-      "reqIds": [
-        "REQ-4"
       ],
       "version": 1
     }
@@ -36,20 +18,12 @@
   "new_feature_requests": [
     {
       "id": "AR-1",
-      "summary": "Add an option so that once the auction starts, each team bid increases the bidding amount by 0.2cr (fixed increment per bid).",
+      "summary": "Publish the latest build (Draft Version 15) / complete deployment",
       "reqIds": [],
-      "status": "pending"
-    },
-    {
-      "id": "AR-3",
-      "summary": "Enforce the fixed +0.2 Cr increment rule in the backend bidding logic so invalid bid amounts are rejected server-side.",
-      "reqIds": [
-        "REQ-2"
-      ],
       "status": "pending"
     }
   ],
-  "projectName": "Add optional fixed +0.2 Cr bid increment for auctions",
+  "projectName": "Publish Draft Version 15 (final deployment)",
   "clarification_mode": "instant",
   "clarification_rounds": 0
 }

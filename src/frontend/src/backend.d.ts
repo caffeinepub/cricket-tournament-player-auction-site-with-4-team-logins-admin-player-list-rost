@@ -35,10 +35,12 @@ export interface FielderPerformance {
     catches: bigint;
 }
 export interface AuctionState {
+    isStopped: boolean;
     playerId: bigint;
     highestBid: number;
     isFinalized: boolean;
     highestBidTeamId?: bigint;
+    isAssigning: boolean;
     fixedIncrement: boolean;
     startingBid: number;
 }
@@ -82,11 +84,11 @@ export interface backendInterface {
     addFielderPerformance(matchId: bigint, performance: FielderPerformance): Promise<void>;
     addPlayerToTeam(playerId: bigint, teamId: bigint): Promise<void>;
     assignCallerUserRole(user: Principal, role: UserRole): Promise<void>;
+    assignPlayerAfterAuction(playerId: bigint): Promise<void>;
     createMatch(homeTeamId: bigint, awayTeamId: bigint, homeTeamName: string, awayTeamName: string, date: string, location: string): Promise<bigint>;
     createPlayer(name: string, basePrice: number): Promise<void>;
     createTeam(name: string, totalPurse: number): Promise<void>;
     deletePlayer(playerId: bigint): Promise<void>;
-    finalizeAuction(playerId: bigint): Promise<void>;
     getAllMatches(): Promise<Array<Match>>;
     getAllPlayers(): Promise<Array<Player>>;
     getAllTeamBudgets(): Promise<Array<TeamBudget>>;
@@ -104,6 +106,7 @@ export interface backendInterface {
     removePlayerFromTeam(playerId: bigint, teamId: bigint): Promise<void>;
     saveCallerUserProfile(profile: UserProfile): Promise<void>;
     startAuction(playerId: bigint, startingBid: number, fixedIncrement: boolean): Promise<void>;
+    stopAuction(playerId: bigint): Promise<void>;
     updateMatchResults(matchId: bigint, homeTeamRuns: bigint, homeTeamWickets: bigint, awayTeamRuns: bigint, awayTeamWickets: bigint, matchWinner: string): Promise<void>;
     updatePlayer(playerId: bigint, name: string, basePrice: number): Promise<void>;
     updateTeamPurse(teamId: bigint, newPurse: number): Promise<void>;

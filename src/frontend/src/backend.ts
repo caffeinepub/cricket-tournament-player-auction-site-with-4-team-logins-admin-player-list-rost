@@ -117,10 +117,12 @@ export interface FielderPerformance {
     catches: bigint;
 }
 export interface AuctionState {
+    isStopped: boolean;
     playerId: bigint;
     highestBid: number;
     isFinalized: boolean;
     highestBidTeamId?: bigint;
+    isAssigning: boolean;
     fixedIncrement: boolean;
     startingBid: number;
 }
@@ -165,11 +167,11 @@ export interface backendInterface {
     addFielderPerformance(matchId: bigint, performance: FielderPerformance): Promise<void>;
     addPlayerToTeam(playerId: bigint, teamId: bigint): Promise<void>;
     assignCallerUserRole(user: Principal, role: UserRole): Promise<void>;
+    assignPlayerAfterAuction(playerId: bigint): Promise<void>;
     createMatch(homeTeamId: bigint, awayTeamId: bigint, homeTeamName: string, awayTeamName: string, date: string, location: string): Promise<bigint>;
     createPlayer(name: string, basePrice: number): Promise<void>;
     createTeam(name: string, totalPurse: number): Promise<void>;
     deletePlayer(playerId: bigint): Promise<void>;
-    finalizeAuction(playerId: bigint): Promise<void>;
     getAllMatches(): Promise<Array<Match>>;
     getAllPlayers(): Promise<Array<Player>>;
     getAllTeamBudgets(): Promise<Array<TeamBudget>>;
@@ -187,6 +189,7 @@ export interface backendInterface {
     removePlayerFromTeam(playerId: bigint, teamId: bigint): Promise<void>;
     saveCallerUserProfile(profile: UserProfile): Promise<void>;
     startAuction(playerId: bigint, startingBid: number, fixedIncrement: boolean): Promise<void>;
+    stopAuction(playerId: bigint): Promise<void>;
     updateMatchResults(matchId: bigint, homeTeamRuns: bigint, homeTeamWickets: bigint, awayTeamRuns: bigint, awayTeamWickets: bigint, matchWinner: string): Promise<void>;
     updatePlayer(playerId: bigint, name: string, basePrice: number): Promise<void>;
     updateTeamPurse(teamId: bigint, newPurse: number): Promise<void>;
@@ -278,6 +281,20 @@ export class Backend implements backendInterface {
             return result;
         }
     }
+    async assignPlayerAfterAuction(arg0: bigint): Promise<void> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.assignPlayerAfterAuction(arg0);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.assignPlayerAfterAuction(arg0);
+            return result;
+        }
+    }
     async createMatch(arg0: bigint, arg1: bigint, arg2: string, arg3: string, arg4: string, arg5: string): Promise<bigint> {
         if (this.processError) {
             try {
@@ -331,20 +348,6 @@ export class Backend implements backendInterface {
             }
         } else {
             const result = await this.actor.deletePlayer(arg0);
-            return result;
-        }
-    }
-    async finalizeAuction(arg0: bigint): Promise<void> {
-        if (this.processError) {
-            try {
-                const result = await this.actor.finalizeAuction(arg0);
-                return result;
-            } catch (e) {
-                this.processError(e);
-                throw new Error("unreachable");
-            }
-        } else {
-            const result = await this.actor.finalizeAuction(arg0);
             return result;
         }
     }
@@ -586,6 +589,20 @@ export class Backend implements backendInterface {
             return result;
         }
     }
+    async stopAuction(arg0: bigint): Promise<void> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.stopAuction(arg0);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.stopAuction(arg0);
+            return result;
+        }
+    }
     async updateMatchResults(arg0: bigint, arg1: bigint, arg2: bigint, arg3: bigint, arg4: bigint, arg5: string): Promise<void> {
         if (this.processError) {
             try {
@@ -651,25 +668,31 @@ function from_candid_opt_n7(_uploadFile: (file: ExternalBlob) => Promise<Uint8Ar
     return value.length === 0 ? null : from_candid_UserProfile_n8(_uploadFile, _downloadFile, value[0]);
 }
 function from_candid_record_n5(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: {
+    isStopped: boolean;
     playerId: bigint;
     highestBid: number;
     isFinalized: boolean;
     highestBidTeamId: [] | [bigint];
+    isAssigning: boolean;
     fixedIncrement: boolean;
     startingBid: number;
 }): {
+    isStopped: boolean;
     playerId: bigint;
     highestBid: number;
     isFinalized: boolean;
     highestBidTeamId?: bigint;
+    isAssigning: boolean;
     fixedIncrement: boolean;
     startingBid: number;
 } {
     return {
+        isStopped: value.isStopped,
         playerId: value.playerId,
         highestBid: value.highestBid,
         isFinalized: value.isFinalized,
         highestBidTeamId: record_opt_to_undefined(from_candid_opt_n6(_uploadFile, _downloadFile, value.highestBidTeamId)),
+        isAssigning: value.isAssigning,
         fixedIncrement: value.fixedIncrement,
         startingBid: value.startingBid
     };
